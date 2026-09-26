@@ -1,0 +1,7 @@
+{
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestFeature",
+    "errorMessage": "This tree is built with the .NET 10 SDK. Install it and build again."
+  }
+}

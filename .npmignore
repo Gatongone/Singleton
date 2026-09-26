@@ -1,0 +1,11 @@
+# What the package of Unity does not carry. The generator is published as the plugin which the package ships, so the
+# project which built it, the editor state of whoever built it, and the plumbing of this repository are none of them
+# part of what a consumer installs.
+.github
+.editorconfig
+.gitattributes
+.gitignore
+.npmignore
+.idea
+.vs
+Generator~
