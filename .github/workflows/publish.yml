@@ -1,0 +1,207 @@
+# Publishing a release publishes what the release names: the version is the tag which the release was given, and the
+# package which this repository carries is packed with that version and pushed.
+#
+# What is published is committed, and the tag is moved to the commit which holds it. That is what makes the version a
+# part of the release rather than a part of this run: the package of Unity is published twice, npm is handed what this
+# run packs, and OpenUPM packs the tree of the tag of its own accord - it clones the repository at the tag - so the
+# version its readers are given is the one in that tree. A tag which names a version its own tree does not carry is a
+# release which OpenUPM publishes under the version the tree carries, or refuses where that version is on its registry
+# already. GitHub writes the tag when the release is published, which is before this run, so the two are brought
+# together by moving the tag onto the commit which holds the version.
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+# The commit which carries the version is pushed to the branch and the tag of the release is moved to it, and the last
+# step writes the notes of the release: the two of them are writes to the repository which the release belongs to.
+#
+# No token is kept for the registry. The package is published to through a trusted publisher, which is the identity this
+# run is given by GitHub for the step to present to npm: `id-token: write` is what it is given, and what it is answered
+# with is npm's own identity, which its step stages a version with.
+#
+# What has to be done before npm answers is configured per package, and the settings of a package are reached through
+# the package, so the first version of it is published by hand, once, from a terminal which is signed in.
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    # The runner which the workflow that holds every pull request and every push to the branch the releases are cut
+    # from runs on, and for the reason written out there.
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          # The branch which the release was cut from, and the commits between this release and the one before it, are
+          # read out of the history of the repository, which the branches and the tags have to be fetched for.
+          fetch-depth: 0
+
+      - name: Set up the SDK which the tree is built with
+        uses: actions/setup-dotnet@v5
+        with:
+          # The SDK which the generator is built with here, which is the one the workflow which holds every pull request
+          # asks for, and for the reason written out there.
+          dotnet-version: 10.0.x
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          # 22.14 carries the runtime which publishing through a trusted publisher asks for, and the registry is named
+          # so that the .npmrc which is written for it is the one which a publish reads.
+          node-version: 22.14
+          registry-url: https://registry.npmjs.org
+
+      - name: Set up npm
+        # The publisher of a trusted publisher is the npm CLI itself: 11.15 is the one which stages a package, and the
+        # one which the Node above carries is older than that.
+        shell: bash
+        run: npm install --global npm@11
+
+      - name: Test the script which writes the version into the files
+        # The version is written into every file which names one, and the readme is read by whoever is deciding what to
+        # install, so a readme which was left at the version of the release before this one is a reader who is sent to a
+        # package of that version. What keeps the two together is the script below, which is tested here before it is
+        # run: a placeholder which stopped matching the readme it was written for stops the run at this step.
+        shell: bash
+        run: python .github/scripts/set-version-tests.py
+
+      - name: Take the version from the tag of the release
+        id: version
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Write the version into the files which carry one
+        shell: bash
+        run: python .github/scripts/set-version.py "${{ steps.version.outputs.version }}"
+
+      - name: Read the version back out of the files
+        # What is published is packed from these files rather than from the tag, so the version is read back out of
+        # them and the run stops here when one of them does not hold it.
+        shell: bash
+        run: python .github/scripts/set-version.py --check "${{ steps.version.outputs.version }}"
+
+      - name: Test
+        # The suite is held in the script rather than written out here, because the workflow which holds every pull
+        # request and every push to the branch the releases are cut from runs the same one. A suite which is written in
+        # two places is a suite which is changed in one of them, and what is run here is then not what those commits
+        # met: what each of the runs is for is written out where the commands are.
+        shell: bash
+        run: bash .github/scripts/test.sh
+
+      - name: Build the plugin which the package of Unity ships
+        # The package of Unity carries the generator as a plugin which is compiled before it, and the one in the
+        # repository is the one which was built when it was written there last: it is built again from the tag being
+        # released, so that what is published, and the commit which is pushed, carry the generator of the release they
+        # belong to. The build of the project copies it to the plugin on its own only when the copy is asked for, which
+        # it is here: a plain build leaves the plugin where it is, so that a working tree is not dirtied by being built.
+        shell: bash
+        run: dotnet build 'Generator~/Singleton.Generator.csproj' -c Release -p:CopyWeaverToUnity=true
+
+      - name: Commit what is being published, and move the tag to it
+        # The commit carries everything which the release publishes: the version in each file which names one, and the
+        # plugin which the package of Unity ships. It is pushed to the branch which the release was cut from, and the
+        # tag of the release is moved to it, so that what the tag names and what its tree carries are one release.
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "the version was committed already, which is the case when a release is published again"
+          else
+            git commit -m "chore: release $TAG"
+          fi
+
+          # The branch which the release was cut from, which is the one it names, and failing that the one which holds
+          # the commit which was tagged. A release published from a tag which was pushed by hand names the tag here
+          # rather than a branch, so what it names is not taken on trust.
+          TARGET="${{ github.event.release.target_commitish }}"
+          if ! git ls-remote --exit-code --heads origin "$TARGET" > /dev/null 2>&1; then
+            TAGGED=$(git rev-parse "$TAG^{commit}")
+
+            # The branch which points at the tagged commit, which is the branch the tag was cut from.
+            TARGET=$(git for-each-ref --format='%(refname:short) %(objectname)' refs/remotes/origin \
+                     | sed 's|^origin/||' | grep -v '^HEAD ' \
+                     | awk -v commit="$TAGGED" '$2 == commit { print $1 }' | head -1)
+
+            # Failing that, a branch which the tagged commit is somewhere in the history of, which is the case when
+            # the branch was pushed to after the tag was cut. The push below refuses it, and says so.
+            if [ -z "$TARGET" ]; then
+              TARGET=$(git branch -r --contains "$TAG" --format='%(refname:short)' | sed 's|^origin/||' | grep -v '^HEAD$' | head -1)
+            fi
+          fi
+          echo "pushing to $TARGET"
+
+          # The branch first: a push which the branch refuses stops the run here, with the tag where it was and nothing
+          # published, rather than with a tag which was moved and a branch which was not.
+          git push origin "HEAD:$TARGET"
+
+          git tag -f "$TAG"
+          git push -f origin "$TAG"
+
+      - name: Publish the package of Unity
+        # The package is published to npm, which the Package Manager reads it from through a scoped registry, and no
+        # token is read to publish it: the identity of this run is the one GitHub writes for it, and npm answers that
+        # identity with a package of its own accord when the repository, the workflow and the job are the ones a trusted
+        # publisher of the package was configured with.
+        #
+        # It is staged rather than published, which is what a trusted publisher is configured with by default: the
+        # version is put in the queue which npm holds for the package, and a maintainer approves it there, with the
+        # second factor which publishing from a terminal asks for. A trusted publisher which is allowed to publish its
+        # own versions makes the word `stage` below `publish`.
+        #
+        # OpenUPM is the other place this is published, and nothing is pushed to it from here: it reads the package out
+        # of the tree of the tag, which was moved onto this release above.
+        #
+        # What npm packs is the root of the repository, which is the package itself, and `.npmignore` is what keeps the
+        # generator's project and the plumbing of the repository out of it: the generator is published as the plugin
+        # which the package ships, and a consumer is handed no copy of the project which built it.
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # A version which the registry holds already is left where it stands rather than published again, which the
+          # registry refuses: a release which is published twice finds it there and is answered rather than failing.
+          if npm view "com.gatongone.singleton@$VERSION" version > /dev/null 2>&1; then
+            echo "com.gatongone.singleton@$VERSION is on the registry already, and is left there"
+            exit 0
+          fi
+
+          # A publish which fails is tried again, because the registry refuses a request which arrives while another
+          # one for the same name is being answered.
+          for attempt in 1 2 3; do
+            if npm stage publish; then exit 0; fi
+            echo "staging com.gatongone.singleton@$VERSION failed on attempt $attempt, trying again"
+            sleep 5
+          done
+          exit 1
+
+      - name: Write the notes of the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # A release which was given notes when it was made keeps them, which is what the first release of a version
+          # is given: the commits of the whole history are what would be written for it otherwise, and they say nothing
+          # about what the version is. What a release which was made without any is given is the commits between it and
+          # the release before it.
+          if [ -n "$(gh release view "$TAG" --json body --jq .body)" ]; then
+            echo "the release holds notes already, and they are left as they are"
+            exit 0
+          fi
+
+          python .github/scripts/release-notes.py "$TAG" > "$RUNNER_TEMP/notes.md"
+          gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

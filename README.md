@@ -188,7 +188,7 @@ openupm add com.gatongone.singleton
 {
   "dependencies":
   {
-    "com.gatongone.singleton": "https://github.com/Gatongone/Singleton.git#main"
+    "com.gatongone.singleton": "https://github.com/Gatongone/Singleton.git#v0.0.1"
   }
 }
 ```
