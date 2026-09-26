@@ -2,6 +2,7 @@
     "name": "Singleton.Tests",
     "rootNamespace": "Singleton.Tests",
     "references": [
+        "Singleton.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -23,7 +23,6 @@
   "homepage": "https://github.com/Gatongone/Singleton",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gatongone/Singleton.git",
-    "directory": "Inject/Unity"
+    "url": "https://github.com/Gatongone/Singleton.git"
   }
 }
