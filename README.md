@@ -19,7 +19,7 @@ The type is declared `partial`, and nothing else is asked of it. No base type ca
 
 ## Manual
 
-### The attribute
+### Attribute
 
 **With nothing**, Unity makes the instance, or the type's own constructor does:
 
@@ -28,6 +28,11 @@ The type is declared `partial`, and nothing else is asked of it. No base type ca
 | `MonoBehaviour` | the loaded instance, or one made on a new `GameObject` where there is none |
 | `ScriptableObject` | the loaded instance, or one made with `CreateInstance` where there is none |
 | anything else | `new T()`, so it needs a parameterless constructor of any accessibility |
+
+```csharp
+[Singleton]
+public partial class Foo { }
+```
 
 **With a creator**, `ICreator<T>` makes it:
 
@@ -61,13 +66,16 @@ public partial class ResourceScriptableObject : ScriptableObject { }
 
 [Singleton(AssetType.Addressable, "address/of/asset")]
 public partial class AddressableMonoBehaviour : MonoBehaviour { }
+
+[Singleton(AssetType.Addressable, "address/of/asset")]
+public partial class AddressableScriptableObject : ScriptableObject { }
 ```
 
 An asset type applies to a `MonoBehaviour` and to a `ScriptableObject`, and to nothing else. A `MonoBehaviour` looks for an instance which is already loaded first, and only then loads the prefab and instantiates it; a `ScriptableObject` loads the asset itself.
 
 The path may be left out for `AssetType.Resources`, and the generator then reads it off the project: the first `.prefab` (for a `MonoBehaviour`) or `.asset` (for a `ScriptableObject`) which names the script which declares the type is the one which is loaded, and a project which holds none is an error. An Addressables **address** cannot be read off a project, so `AssetType.Addressable` asks for it.
 
-### What is woven
+### Woven
 
 A `MonoBehaviour` is given an `Awake` and an `OnDestroy`:
 
@@ -93,9 +101,19 @@ protected virtual void OnDestroy()
 
 A `ScriptableObject` is given an `OnEnable` and an `OnDisable` instead, and a second one which is enabled is left out of the field rather than destroyed, because Unity loads a `ScriptableObject` only once.
 
-What the type wrote is never replaced: what is woven is written in front of the body, so both run.
+### Extra
 
-`[DontDestroyOnLoad]` adds `DontDestroyOnLoad(gameObject)` to the `Awake`, and `[Invisible]` adds `gameObject.hideFlags = HideFlags.HideInHierarchy | HideFlags.HideInInspector | HideFlags.DontSave`. Both apply to a `MonoBehaviour` alone, because a `MonoBehaviour` alone has a `GameObject`.
+```csharp
+[DontDestroyOnLoad, Invisible]
+public class Foo : MonoBehaviour
+{
+    // ...
+}
+```
+
+* `[DontDestroyOnLoad]`: adds `DontDestroyOnLoad(gameObject)` to the `Awake`
+
+* `[Invisible]`: adds `gameObject.hideFlags = HideFlags.HideInHierarchy | HideFlags.HideInInspector | HideFlags.DontSave`.
 
 Both also stand on their own: a type which carries one of them and no `[Singleton]` is still given an `Awake` which does what the attribute asks. Where a type carries a singleton as well, the singleton is settled first and the attributes after it, so a second instance, which is given up, is neither kept nor hidden.
 
@@ -107,7 +125,7 @@ T Read<T>() where T : class, ISingleton<T> => Singleton<T>.Instance;
 
 ### Diagnostics
 
-| Id | |
+| ID | Descriptions |
 |----|---|
 | SING0001 | The type, or a type which holds it, is not declared `partial`. |
 | SING0002 | The type is generic, abstract, static, not a class, or declared inside a generic type. |
@@ -195,4 +213,4 @@ openupm add com.gatongone.singleton
 
 ## License
 
-Singleton is released under the [MIT License](LICENSE). Copyright (c) 2026, Gatongone.
+Singleton is released under the [MIT License](LICENSE). Copyright (c) 2026, Gatongone
