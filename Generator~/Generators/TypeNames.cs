@@ -23,7 +23,7 @@ namespace Singleton.Generator
         public const string SYSTEM_TYPE = "System.Type";
 
         /// <summary>Keeps the object of a singleton across scene loads.</summary>
-        public const string DONT_DESTROY_ON_LOAD_ATTRIBUTE = "Singleton.Runtime.DontDestroyOnLoadAttribute";
+        public const string PERSISTENT_ATTRIBUTE = "Singleton.Runtime.PersistentAttribute";
 
         /// <summary>Takes the object of a singleton out of the hierarchy, the Inspector and what a save writes.</summary>
         public const string INVISIBLE_ATTRIBUTE = "Singleton.Runtime.InvisibleAttribute";

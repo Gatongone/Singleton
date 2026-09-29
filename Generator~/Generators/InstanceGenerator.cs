@@ -78,9 +78,9 @@ namespace Singleton.Generator
             // The two attributes of the weaver name something which only a MonoBehaviour has - a GameObject - so on
             // anything else they ask for something which cannot be done, and saying so here is saying it at the place
             // the attribute was written rather than in an assembly which was already compiled.
-            if (markers.Has(type, markers.DontDestroyOnLoad))
+            if (markers.Has(type, markers.Persistent))
             {
-                context.ReportDiagnostic(Diagnostic.Create(SingletonDiagnostics.DontDestroyOnLoadRequiresMonoBehaviour, Where(type), type.Name));
+                context.ReportDiagnostic(Diagnostic.Create(SingletonDiagnostics.PersistentRequiresMonoBehaviour, Where(type), type.Name));
             }
 
             if (markers.Has(type, markers.Invisible))
@@ -133,7 +133,7 @@ namespace Singleton.Generator
 
             if (read == null) return null;
 
-            read.DontDestroyOnLoad = markers.Has(type, markers.DontDestroyOnLoad);
+            read.Persistent = markers.Has(type, markers.Persistent);
             read.Invisible = markers.Has(type, markers.Invisible);
             return read;
         }
@@ -602,7 +602,7 @@ namespace Singleton.Generator
             AssetType = compilation.GetTypeByMetadataName(TypeNames.ASSET_TYPE);
             Type = compilation.GetTypeByMetadataName(TypeNames.SYSTEM_TYPE);
             ICreator = compilation.GetTypeByMetadataName(TypeNames.CREATOR);
-            DontDestroyOnLoad = compilation.GetTypeByMetadataName(TypeNames.DONT_DESTROY_ON_LOAD_ATTRIBUTE);
+            Persistent = compilation.GetTypeByMetadataName(TypeNames.PERSISTENT_ATTRIBUTE);
             Invisible = compilation.GetTypeByMetadataName(TypeNames.INVISIBLE_ATTRIBUTE);
             Addressables = compilation.GetTypeByMetadataName(TypeNames.ADDRESSABLES);
             AsyncOperationStatus = compilation.GetTypeByMetadataName(TypeNames.ASYNC_OPERATION_STATUS);
@@ -624,7 +624,7 @@ namespace Singleton.Generator
         public INamedTypeSymbol? ICreator { get; }
 
         /// <summary>Whether the object is kept across scene loads.</summary>
-        public INamedTypeSymbol? DontDestroyOnLoad { get; }
+        public INamedTypeSymbol? Persistent { get; }
 
         /// <summary>Whether the object is hidden.</summary>
         public INamedTypeSymbol? Invisible { get; }

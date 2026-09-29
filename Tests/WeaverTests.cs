@@ -66,7 +66,7 @@ namespace Singleton.Tests
         }
 
         [UnityTest]
-        public IEnumerator DontDestroyOnLoad_keeps_the_object()
+        public IEnumerator Persistent_keeps_the_object()
         {
             var instance = KeptMonoBehaviourSingleton.Instance;
             yield return null;
@@ -100,7 +100,7 @@ namespace Singleton.Tests
         }
 
         [UnityTest]
-        public IEnumerator DontDestroyOnLoad_alone_keeps_the_object_of_a_MonoBehaviour()
+        public IEnumerator Persistent_alone_keeps_the_object_of_a_MonoBehaviour()
         {
             var made = new GameObject(nameof(KeptMonoBehaviour));
             made.AddComponent<KeptMonoBehaviour>();

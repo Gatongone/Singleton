@@ -57,10 +57,16 @@ namespace Singleton.Generator
         public SingletonInstance Instance { get; }
 
         /// <summary>Whether the object is to be kept across the loads of a scene.</summary>
-        public bool DontDestroyOnLoad { get; set; }
+        public bool Persistent { get; set; }
 
         /// <summary>Whether the object is to be taken out of the hierarchy, the Inspector and what a save writes.</summary>
         public bool Invisible { get; set; }
+
+        /// <summary>
+        /// Whether a type which this one derives from asked for a singleton of its own, so that what is written here
+        /// hides what is written there rather than standing beside it.
+        /// </summary>
+        public bool Hides { get; set; }
 
         /// <summary>The path or the address which an asset is loaded by.</summary>
         public string? AssetPath { get; set; }

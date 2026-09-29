@@ -20,7 +20,7 @@ namespace Singleton.Tests
     }
 
     /// <summary>A <c>MonoBehaviour</c> whose object outlives a scene load.</summary>
-    [Singleton, DontDestroyOnLoad]
+    [Singleton, Persistent]
     public partial class KeptMonoBehaviourSingleton : MonoBehaviour
     {
     }

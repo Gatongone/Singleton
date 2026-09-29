@@ -15,7 +15,7 @@ namespace Singleton.Tests
     }
 
     /// <summary>A <c>MonoBehaviour</c> which asked to be kept across scene loads and asked for no singleton.</summary>
-    [DontDestroyOnLoad]
+    [Persistent]
     public class KeptMonoBehaviour : MonoBehaviour
     {
     }
@@ -26,7 +26,7 @@ namespace Singleton.Tests
     /// What is woven is written in front of that body, so what it recorded is what had already been done to the object
     /// - and what a second instance recorded is what had not.
     /// </summary>
-    [Singleton, DontDestroyOnLoad, Invisible]
+    [Singleton, Persistent, Invisible]
     public partial class OrderedMonoBehaviourSingleton : MonoBehaviour
     {
         /// <summary>The flags of the object when the body of the <c>Awake</c> ran.</summary>

@@ -14,11 +14,11 @@ namespace Singleton.Runtime
     /// settled first, so an object which is destroyed for not being the singleton is not kept as well.
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class)]
-    public sealed class DontDestroyOnLoadAttribute : Attribute
+    public sealed class PersistentAttribute : Attribute
     {
         /// <summary>
         /// Keeps the <c>GameObject</c> of the type alive across scene loads.
         /// </summary>
-        public DontDestroyOnLoadAttribute() { }
+        public PersistentAttribute() { }
     }
 }

@@ -104,10 +104,10 @@ namespace Singleton.Generator
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary><c>DontDestroyOnLoadAttribute</c> was put on something which has no object to keep.</summary>
-        public static readonly DiagnosticDescriptor DontDestroyOnLoadRequiresMonoBehaviour = new(
+        /// <summary><c>PersistentAttribute</c> was put on something which has no object to keep.</summary>
+        public static readonly DiagnosticDescriptor PersistentRequiresMonoBehaviour = new(
             "SING0011",
-            "DontDestroyOnLoad applies to a MonoBehaviour",
+            "Persistent applies to a MonoBehaviour",
             "'{0}' asks to be kept across scene loads and is not a MonoBehaviour, so there is nothing to keep",
             CATEGORY,
             DiagnosticSeverity.Error,

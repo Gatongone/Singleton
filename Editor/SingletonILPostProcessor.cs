@@ -44,7 +44,7 @@ namespace Singleton.Editor
         private const string SINGLETON_ATTRIBUTE = "Singleton.Runtime.SingletonAttribute";
 
         /// <summary>The attribute which asks for the object to be kept across scene loads.</summary>
-        private const string DONT_DESTROY_ON_LOAD_ATTRIBUTE = "Singleton.Runtime.DontDestroyOnLoadAttribute";
+        private const string PERSISTENT_ATTRIBUTE = "Singleton.Runtime.PersistentAttribute";
 
         /// <summary>The attribute which asks for the object to be hidden.</summary>
         private const string INVISIBLE_ATTRIBUTE = "Singleton.Runtime.InvisibleAttribute";
@@ -132,15 +132,22 @@ namespace Singleton.Editor
             var unity = default(Unity);
             var woven = false;
 
-            foreach (var type in Types(image.MainModule))
-            {
-                if (!Marks(type)) continue;
+            // What is woven is the types which asked for it, and a base type is woven before the types which derive
+            // from it: what a message which is made is written from is the message of the type the deriving one has,
+            // and a type which is woven before the type it derives from is one whose message names a method which that
+            // type has not been given yet, and the message of it is then never run.
+            var marked = Types(image.MainModule)
+                .Where(Marks)
+                .OrderBy(type => Depth(type, image.MainModule))
+                .ToList();
 
+            foreach (var type in marked)
+            {
                 // What a message of Unity is written against is read once for the image, and only for an image which
                 // holds a type worth weaving: an assembly which holds none is left, and not one of the assemblies it
                 // names is read.
                 unity ??= Unity.Of(image.MainModule, resolver);
-                woven |= Weave(type, image.MainModule, unity);
+                woven |= Weave(type, image.MainModule, unity, diagnostics);
             }
 
             if (!woven) return null;
@@ -229,10 +236,10 @@ namespace Singleton.Editor
         /// <param name="module">The module the type lies in.</param>
         /// <param name="unity">What a message of Unity is written against.</param>
         /// <returns>Whether the type was woven into.</returns>
-        private static bool Weave(TypeDefinition type, ModuleDefinition module, Unity? unity)
+        private static bool Weave(TypeDefinition type, ModuleDefinition module, Unity? unity, List<DiagnosticMessage> diagnostics)
         {
             var singleton = AsksForASingleton(type);
-            var keep = Has(type, DONT_DESTROY_ON_LOAD_ATTRIBUTE);
+            var keep = Has(type, PERSISTENT_ATTRIBUTE);
             var invisible = Has(type, INVISIBLE_ATTRIBUTE);
 
             if (!singleton && !keep && !invisible) return false;
@@ -289,7 +296,7 @@ namespace Singleton.Editor
         /// The instance which is held is written to the field again when the field already holds it, which is not a
         /// message written twice for nothing: the property makes the instance of the default <c>MonoBehaviour</c>
         /// singleton and puts it in the field before Unity runs <c>Awake</c> on it, so a message which skipped the work
-        /// when the field holds it would be the one message a <c>DontDestroyOnLoad</c> singleton never runs.<para/>
+        /// when the field holds it would be the one message a <c>Persistent</c> singleton never runs.<para/>
         /// A type which asked for no singleton is one which has no field, and what is written for it is only what the
         /// two attributes ask of the object: the object of a <c>MonoBehaviour</c> is there whether or not the type is a
         /// singleton.
@@ -468,7 +475,7 @@ namespace Singleton.Editor
         /// <returns>Whether it is.</returns>
         private static bool Marks(TypeDefinition type) =>
             AsksForASingleton(type) ||
-            Has(type, DONT_DESTROY_ON_LOAD_ATTRIBUTE) ||
+            Has(type, PERSISTENT_ATTRIBUTE) ||
             Has(type, INVISIBLE_ATTRIBUTE);
 
         /// <summary>
@@ -540,6 +547,67 @@ namespace Singleton.Editor
 
                 foreach (var nested in type.NestedTypes) pending.Push(nested);
             }
+        }
+
+        /// <summary>
+        /// Read how many types a type derives from, which is what the order of the weaving is read in.
+        /// </summary>
+        /// <remarks>
+        /// The chain is walked through <see cref="Base"/>, which reads a base type out of the module it lies beside
+        /// before it reads it out of the assembly it names and leaves the chain where that cannot be done: a base type
+        /// which is read by resolving it alone ends the whole of the weaving where it cannot be resolved, rather than
+        /// the chain it stands in.
+        /// </remarks>
+        /// <param name="type">The type.</param>
+        /// <param name="module">The module the type lies in.</param>
+        /// <returns>The number of them.</returns>
+        private static int Depth(TypeDefinition type, ModuleDefinition module)
+        {
+            var depth = 0;
+            for (var current = Base(type, module); current != null && depth < 128; current = Base(current, module)) depth++;
+
+            return depth;
+        }
+
+        /// <summary>
+        /// Whether the chain of base types of a type can be read to the end of it.
+        /// </summary>
+        /// <remarks>
+        /// A chain which ends is one whose last type is declared as none, and a chain which <see cref="Base"/> answered
+        /// with nothing about is one which could not be read: the two are told apart by the type which was left holding
+        /// a base type, which is the one the reading stopped at.
+        /// </remarks>
+        /// <param name="type">The type.</param>
+        /// <param name="module">The module the type lies in.</param>
+        /// <returns>Whether it can be read.</returns>
+        private static bool Readable(TypeDefinition type, ModuleDefinition module)
+        {
+            var current = type;
+            for (var depth = 0; current != null && depth < 128; depth++)
+            {
+                if (current.BaseType == null) return true;
+
+                current = Base(current, module);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Report a weaving which stopped at a type, and answer with what the weaving of that type answers with.
+        /// </summary>
+        /// <remarks>
+        /// A diagnostic fails the compilation, and the process which runs the weaving prints what it throws and none of
+        /// what a processor answers it with: a failure which is not thrown is one no reader of a run finds, so what the
+        /// weaving can report it reports and what it cannot it throws.
+        /// </remarks>
+        /// <param name="message">What is reported.</param>
+        /// <param name="diagnostics">What is reported.</param>
+        /// <returns><c>false</c>, which is what the weaving of a type answers with.</returns>
+        private static bool Stop(string message, List<DiagnosticMessage> diagnostics)
+        {
+            diagnostics.Add(Error(message));
+            return false;
         }
 
         /// <summary>

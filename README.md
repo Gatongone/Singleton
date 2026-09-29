@@ -101,17 +101,21 @@ protected virtual void OnDestroy()
 
 A `ScriptableObject` is given an `OnEnable` and an `OnDisable` instead, and a second one which is enabled is left out of the field rather than destroyed, because Unity loads a `ScriptableObject` only once.
 
+Unity sends a message to the nearest declaration of it alone, and a declaration is what the weaver writes where the type wrote none, so the message a base class wrote is called from the one which was woven rather than left behind. A `private` message of a base class is given `protected` access to make that call, which is the only thing the weaving changes about the declaration a type wrote; a `private` message of an assembly which is not the one being compiled cannot be, and is left behind.
+
+A singleton which derives from a singleton has an instance of its own, and `Instance` is declared `new` where the type it derives from declares one, because a member which is declared beside one of the same name of a type it derives from hides it. `TryGetInstance` is not: it answers with the type it is declared in, which no base type declares alike, so it is an overload rather than a member which hides one. A `MonoBehaviour` is looked for in the scene and a type which derives from another is one of it, so the two answer with the same object where there is one.
+
 ### Extra
 
 ```csharp
-[DontDestroyOnLoad, Invisible]
+[Persistent, Invisible]
 public class Foo : MonoBehaviour
 {
     // ...
 }
 ```
 
-* `[DontDestroyOnLoad]`: adds `DontDestroyOnLoad(gameObject)` to the `Awake`
+* `[Persistent]`: adds `DontDestroyOnLoad(gameObject)` to the `Awake`
 
 * `[Invisible]`: adds `gameObject.hideFlags = HideFlags.HideInHierarchy | HideFlags.HideInInspector | HideFlags.DontSave`.
 
@@ -137,7 +141,7 @@ T Read<T>() where T : class, ISingleton<T> => Singleton<T>.Instance;
 | SING0008 | No prefab or asset under a `Resources` folder holds the type. |
 | SING0009 | `AssetType.Addressable` was asked for without an address. |
 | SING0010 | The compilation does not see a type which the generated code would name, so the Addressables package is not referenced. |
-| SING0011 | `DontDestroyOnLoadAttribute` was put on something which is not a `MonoBehaviour`. |
+| SING0011 | `PersistentAttribute` was put on something which is not a `MonoBehaviour`. |
 | SING0012 | `InvisibleAttribute` was put on something which is not a `MonoBehaviour`. |
 | SING0013 | The Unity project could not be found, so a `Resources` path could not be read off it. |
 
