@@ -146,9 +146,11 @@ namespace Singleton.Generator
             indent += "    ";
 
             var qualified = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            builder.Append(indent).AppendLine("/// <summary>The instance, which is null until one is made.</summary>");
             builder.Append(indent).Append("private static ").Append(qualified).AppendLine("? s_Instance;");
             builder.AppendLine();
-            builder.Append(indent).Append("public static ").Append(qualified).AppendLine(" Instance");
+            builder.Append(indent).Append("/// <summary>").Append(Summary(target.Instance)).AppendLine("</summary>");
+            builder.Append(indent).Append(Modifiers(target)).Append(qualified).AppendLine(" Instance");
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.Append(indent).AppendLine("    get");
@@ -198,6 +200,58 @@ namespace Singleton.Generator
         /// <param name="indent">The indentation.</param>
         /// <returns>The indentation of the declaration which holds the type.</returns>
         private static string Outdent(string indent) => indent.Substring(0, indent.Length - 4);
+
+        /// <summary>
+        /// What the property of the generated half is declared with.
+        /// </summary>
+        /// <remarks>
+        /// A member of a type which is declared beside a member of the same name of a type it derives from hides it,
+        /// and a compiler which reads that as an accident says so: what is written here says which of the two it is, so
+        /// that a singleton which derives from a singleton is one a reader is told about rather than one a warning is
+        /// raised over.<para/>
+        /// What the method is declared with is not this, because a method which answers with the type it is declared in
+        /// is one no base type declares alike - the argument it is answered with is a type of its own - so it is an
+        /// overload of the one the base type declares rather than a member which hides it, and <c>new</c> on it is what
+        /// the compiler warns about.
+        /// </remarks>
+        /// <param name="target">The singleton.</param>
+        /// <returns>The modifiers of the declaration.</returns>
+        private static string Modifiers(SingletonTarget target) => target.Hides ? "public new static " : "public static ";
+
+        /// <summary>
+        /// What the property of a singleton is documented as.
+        /// </summary>
+        /// <remarks>
+        /// A reader of the generated half of a type is a reader who went looking for what the property does, and what
+        /// it does is not one thing: a type which Unity makes is looked for before anything is made, and a type which
+        /// an asset is loaded from is loaded. What is written is therefore what this singleton makes its instance with
+        /// rather than one sentence for every one of them, which would be a sentence this one is not.
+        /// </remarks>
+        /// <param name="instance">How the instance is first made.</param>
+        /// <returns>The summary of the property.</returns>
+        private static string Summary(SingletonInstance instance) => instance switch
+        {
+            SingletonInstance.Newable =>
+                "The instance of the singleton, which the constructor of the type makes the first time it is read.",
+            SingletonInstance.Creator =>
+                "The instance of the singleton, which the creator the attribute named makes the first time it is read.",
+            SingletonInstance.ResourcesMonoBehaviour =>
+                "The instance of the singleton, which is looked for in the scene and loaded from the prefab where there is none.",
+            SingletonInstance.ResourcesScriptableObject =>
+                "The instance of the singleton, which is loaded from the asset the first time it is read.",
+            SingletonInstance.AddressableMonoBehaviour =>
+                "The instance of the singleton, which is looked for in the scene and loaded from the address where there is none.",
+            SingletonInstance.AddressableScriptableObject =>
+                "The instance of the singleton, which is loaded from the address the first time it is read.",
+            SingletonInstance.MonoBehaviour =>
+                "The instance of the singleton, which is looked for in the scene and made on a new GameObject where there is none.",
+            SingletonInstance.ScriptableObject =>
+                "The instance of the singleton, which is looked for in the scene and made where there is none.",
+            // A member of the enumeration which no arm above names is one this was not written for, and the sentence it
+            // is given is the one which is true of every singleton rather than of the one which makes it.
+            _ =>
+                "The instance of the singleton."
+        };
 
         /// <summary>
         /// Write the body of the getter, which makes the instance where there is none and returns it.
