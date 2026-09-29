@@ -61,6 +61,8 @@ namespace Singleton.Generator
                 var target = Read(context, type, singleton, markers, arguments, locator);
                 if (target == null) continue;
 
+                target.Hides = Singleton(type.BaseType, attribute);
+
                 context.AddSource(Hint(type, hints), SourceText.From(SingletonEmitter.Emit(target, arguments), Encoding.UTF8));
             }
         }
@@ -527,6 +529,26 @@ namespace Singleton.Generator
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Whether a type, or one of the types it derives from, asked for a singleton.
+        /// </summary>
+        /// <remarks>
+        /// The half of a singleton is declared beside the type it belongs to, so the half of a type which derives from
+        /// one is declared beside the half of the type it derives from, and what the two declare is named alike.
+        /// </remarks>
+        /// <param name="type">The type it derives from, or <c>null</c> where it derives from none.</param>
+        /// <param name="attribute">The attribute which asks for a singleton.</param>
+        /// <returns>Whether one of them did.</returns>
+        private static bool Singleton(INamedTypeSymbol? type, INamedTypeSymbol attribute)
+        {
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                if (Find(current, attribute) != null) return true;
+            }
+
+            return false;
         }
 
         /// <summary>

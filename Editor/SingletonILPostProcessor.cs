@@ -435,7 +435,77 @@ namespace Singleton.Editor
 
             type.Methods.Add(made);
             made.Body = Empty(made);
+
+            // A message which is made is one the type never wrote, and Unity sends a message to the nearest declaration
+            // of it alone: a base type which wrote one is a body which ran before anything was woven here and which
+            // would not run after, so it is called from the message which was made. What a type wrote itself is left as
+            // it is, because a message which a type writes over one of its base is one Unity sent to that message
+            // before this package was added at all.
+            if (Inherited(type, name) is { } inherited && Reachable(inherited, type.Module))
+            {
+                made.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Call, type.Module.ImportReference(inherited)));
+                made.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Ldarg_0));
+            }
+
             return made;
+        }
+
+        /// <summary>
+        /// Read the message of the nearest base type which declares one.
+        /// </summary>
+        /// <remarks>
+        /// Unity sends a message to the nearest declaration of it, so what is read here is what Unity would have sent
+        /// the message to had nothing been woven into the type. A message which a type further up declares is reached
+        /// through the one below it rather than called from here, because it is that one which would have run.<para/>
+        /// The chain is walked through <see cref="Base"/>, which is what leaves it where a base type cannot be read: a
+        /// chain which cannot be read is then one which no message is called from, rather than one which the weaving of
+        /// the whole assembly stops at.
+        /// </remarks>
+        /// <param name="type">The type.</param>
+        /// <param name="name">The name of the message.</param>
+        /// <returns>The message, or <c>null</c> where no base type declares one.</returns>
+        private static MethodDefinition? Inherited(TypeDefinition type, string name)
+        {
+            var module = type.Module;
+            var current = Base(type, module);
+            for (var depth = 0; current != null && depth < 128; depth++, current = Base(current, module))
+            {
+                foreach (var method in current.Methods)
+                {
+                    if (method.Name != name) continue;
+                    if (method.IsStatic || method.Parameters.Count != 0) continue;
+                    if (method.ReturnType.FullName != "System.Void") continue;
+
+                    return method;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Whether a message of another type may be called from the one being woven, which a private message may not.
+        /// </summary>
+        /// <remarks>
+        /// A private message of a base type is one no other type may call, and it is one Unity ran for a type which
+        /// derived from it until a message was woven into that type: what is widened here is the access of a method
+        /// which the weaving would otherwise have taken out of the run of it. A private message of an assembly which is
+        /// not this one cannot be widened, and is left where it is.
+        /// </remarks>
+        /// <param name="method">The message.</param>
+        /// <param name="module">The module being woven.</param>
+        /// <returns>Whether it may be called.</returns>
+        private static bool Reachable(MethodDefinition method, ModuleDefinition module)
+        {
+            if (method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly) return true;
+            if (method.Module.Assembly.Name.FullName != module.Assembly.Name.FullName) return false;
+
+            if (method.IsPrivate)
+            {
+                method.Attributes = (method.Attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Family;
+            }
+
+            return true;
         }
 
         /// <summary>

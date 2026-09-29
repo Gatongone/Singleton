@@ -138,5 +138,56 @@ namespace Singleton.Tests
 
             yield return null;
         }
+
+        [UnityTest]
+        public IEnumerator The_Awake_of_a_base_class_runs_beside_the_one_which_was_woven()
+        {
+            var instance = DerivedFromWakingBase.Instance;
+            yield return null;
+
+            Assert.That(instance.Awoke, Is.True, "the Awake which the base class wrote never ran");
+        }
+
+        [UnityTest]
+        public IEnumerator The_singletons_of_one_hierarchy_are_the_same_object()
+        {
+            var instance = DerivedSingleton.Instance;
+            yield return null;
+
+            Assert.That(instance.Awoke, Is.True, "the Awake which the base class wrote never ran");
+            Assert.That(BaseSingleton.Instance, Is.SameAs(instance), "the base singleton is another object");
+        }
+
+        [UnityTest]
+        public IEnumerator The_Awake_of_a_base_class_runs_where_nothing_was_woven_into_the_type()
+        {
+            var made = new GameObject(nameof(PlainDerivedFromWakingBase)).AddComponent<PlainDerivedFromWakingBase>();
+            yield return null;
+
+            Assert.That(made.Awoke, Is.True, "the Awake which the base class wrote never ran");
+
+            Object.DestroyImmediate(made.gameObject);
+        }
+
+        [UnityTest]
+        public IEnumerator The_virtual_Awake_of_a_base_class_runs_beside_the_one_which_was_woven()
+        {
+            var instance = DerivedFromVirtualWakingBase.Instance;
+            yield return null;
+
+            Assert.That(instance.Awoke, Is.True, "the Awake which the base class wrote never ran");
+        }
+
+        [UnityTest]
+        public IEnumerator The_message_which_was_woven_into_a_base_singleton_runs_for_the_type_which_derives_from_it()
+        {
+            var instance = SilentDerivedSingleton.Instance;
+            yield return null;
+
+            // The field is read without the property being read, because the property is one which finds the object
+            // which is there: what is asked here is whether the message woven into the base type ran at all.
+            Assert.That(Singletons.Read(typeof(SilentBaseSingleton)), Is.SameAs(instance),
+                "the base singleton was never told about the object");
+        }
     }
 }

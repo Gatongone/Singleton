@@ -33,7 +33,13 @@ namespace Singleton.Tests
             typeof(Nest.Inner),
             typeof(Nest.Made),
             typeof(GlobalTestSingleton),
-            typeof(OrderedMonoBehaviourSingleton)
+            typeof(OrderedMonoBehaviourSingleton),
+            typeof(DerivedFromWakingBase),
+            typeof(BaseSingleton),
+            typeof(DerivedSingleton),
+            typeof(DerivedFromVirtualWakingBase),
+            typeof(SilentBaseSingleton),
+            typeof(SilentDerivedSingleton)
         };
 
         /// <summary>
