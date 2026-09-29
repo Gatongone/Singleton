@@ -179,7 +179,7 @@ What the generator needs to know about the project, which is the `Resources` pat
   ],
   "dependencies":
   {
-    "com.gatongone.singleton": "0.0.1"
+    "com.gatongone.singleton": "0.0.2"
   }
 }
 ```
@@ -198,7 +198,7 @@ What the generator needs to know about the project, which is the `Resources` pat
   ],
   "dependencies":
   {
-    "com.gatongone.singleton": "0.0.1"
+    "com.gatongone.singleton": "0.0.2"
   }
 }
 ```
@@ -213,7 +213,7 @@ openupm add com.gatongone.singleton
 {
   "dependencies":
   {
-    "com.gatongone.singleton": "https://github.com/Gatongone/Singleton.git#v0.0.1"
+    "com.gatongone.singleton": "https://github.com/Gatongone/Singleton.git#v0.0.2"
   }
 }
 ```
