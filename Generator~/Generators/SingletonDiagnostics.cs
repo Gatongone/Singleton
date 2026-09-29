@@ -35,7 +35,7 @@ namespace Singleton.Generator
         /// <summary>The type declares a member which the generated half would declare as well.</summary>
         public static readonly DiagnosticDescriptor MemberConflict = new(
             "SING0003",
-            "A singleton must not declare 'Instance' or 's_Instance'",
+            "A singleton must not declare 'Instance', 's_Instance' or 'TryGetInstance'",
             "'{0}' asks for a singleton and declares '{1}' of its own, which the generated half would declare as well",
             CATEGORY,
             DiagnosticSeverity.Error,

@@ -18,6 +18,13 @@ namespace Singleton.Runtime
         /// The instance of the singleton.
         /// </summary>
         static abstract T Instance { get; }
+
+        /// <summary>
+        /// The instance of the singleton where there is one, which is answered without making one.
+        /// </summary>
+        /// <param name="instance">The instance, where there is one.</param>
+        /// <returns>Whether there is one.</returns>
+        static abstract bool TryGetInstance(out T instance);
     }
 
     /// <summary>
@@ -35,6 +42,13 @@ namespace Singleton.Runtime
         /// The instance of the singleton.
         /// </summary>
         public static T Instance => T.Instance;
+
+        /// <summary>
+        /// The instance of the singleton where there is one, which is answered without making one.
+        /// </summary>
+        /// <param name="instance">The instance, where there is one.</param>
+        /// <returns>Whether there is one.</returns>
+        public static bool TryGetInstance(out T instance) => T.TryGetInstance(out instance);
     }
 }
 #endif

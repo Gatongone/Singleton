@@ -118,7 +118,7 @@ namespace Singleton.Generator
 
             foreach (var member in type.GetMembers())
             {
-                if (member.Name is not ("Instance" or "s_Instance")) continue;
+                if (member.Name is not ("Instance" or "s_Instance" or "TryGetInstance")) continue;
 
                 context.ReportDiagnostic(Diagnostic.Create(SingletonDiagnostics.MemberConflict, where, type.Name, member.Name));
                 return null;

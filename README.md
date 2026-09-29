@@ -17,6 +17,8 @@ public partial class GameManager : MonoBehaviour
 
 The type is declared `partial`, and nothing else is asked of it. No base type carries the instance, so a `MonoBehaviour` singleton is still a `MonoBehaviour` and a `ScriptableObject` singleton is still a `ScriptableObject`.
 
+`GameManager.TryGetInstance(out var manager)` answers whether there is one already, and makes none where there is not: a message which must not bring a singleton into being asks this rather than `Instance`.
+
 ## Manual
 
 ### Attribute
@@ -125,6 +127,7 @@ Where `CSHARP_11_OR_NEWER` is defined, the generated half also declares the type
 
 ```csharp
 T Read<T>() where T : class, ISingleton<T> => Singleton<T>.Instance;
+bool TryRead<T>(out T instance) where T : class, ISingleton<T> => Singleton<T>.TryGetInstance(out instance);
 ```
 
 ### Diagnostics
@@ -133,7 +136,7 @@ T Read<T>() where T : class, ISingleton<T> => Singleton<T>.Instance;
 |----|---|
 | SING0001 | The type, or a type which holds it, is not declared `partial`. |
 | SING0002 | The type is generic, abstract, static, not a class, or declared inside a generic type. |
-| SING0003 | The type declares an `Instance` or an `s_Instance` of its own. |
+| SING0003 | The type declares an `Instance`, an `s_Instance` or a `TryGetInstance` of its own. |
 | SING0004 | The type has no parameterless constructor for the generated `Instance` to call. |
 | SING0005 | The creator which was named does not implement `ICreator<T>` for the type. |
 | SING0006 | The creator has no accessible constructor which the named arguments fit. |

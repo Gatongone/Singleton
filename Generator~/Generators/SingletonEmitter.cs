@@ -159,6 +159,19 @@ namespace Singleton.Generator
             builder.Append(indent).AppendLine("    }");
             builder.Append(indent).AppendLine("}");
 
+            // What a caller which must not bring a singleton into being reads: the property makes the instance where
+            // there is none, and a message which may run before the one which would have made it is a message which
+            // cannot ask the property whether there is one at all.
+            builder.AppendLine();
+            builder.Append(indent).AppendLine("/// <summary>The instance of the singleton where there is one, which is answered without making one.</summary>");
+            builder.Append(indent).AppendLine("/// <param name=\"instance\">The instance, where there is one.</param>");
+            builder.Append(indent).AppendLine("/// <returns>Whether there is one.</returns>");
+            builder.Append(indent).Append("public static bool TryGetInstance(out ").Append(qualified).AppendLine(" instance)");
+            builder.Append(indent).AppendLine("{");
+            builder.Append(indent).AppendLine("    instance = s_Instance!;");
+            builder.Append(indent).AppendLine("    return instance != null;");
+            builder.Append(indent).AppendLine("}");
+
             // The brace of a declaration is written one step further out than what it holds, so every declaration is
             // closed by stepping out and then writing.
             indent = Outdent(indent);

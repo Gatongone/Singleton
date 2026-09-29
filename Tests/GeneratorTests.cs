@@ -40,6 +40,19 @@ namespace Singleton.Tests
         }
 
         [Test]
+        public void TryGetInstance_answers_without_making_one()
+        {
+            Assert.That(NewableSingleton.TryGetInstance(out var none), Is.False, "an instance was answered with before one was made");
+            Assert.That(none, Is.Null);
+            Assert.That(Singletons.Read(typeof(NewableSingleton)), Is.Null, "the answer made the instance");
+
+            var made = NewableSingleton.Instance;
+
+            Assert.That(NewableSingleton.TryGetInstance(out var found), Is.True);
+            Assert.That(found, Is.SameAs(made));
+        }
+
+        [Test]
         public void A_type_declared_inside_another_type_is_made_by_its_own_constructor()
         {
             var first = Nest.Inner.Instance;
