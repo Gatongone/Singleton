@@ -66,21 +66,41 @@ namespace Singleton.Editor
         /// The types of the module are read without resolving what they refer to, so that asking the question is cheap
         /// and cannot fail: an assembly which declares no singleton is given <c>false</c> here and is never woven.
         /// </summary>
+        /// <remarks>
+        /// Nothing which resolves a type belongs in the walk below. What this answers with is read for whether there is
+        /// anything to weave and not for what went wrong, and a walk which threw here is an assembly which is passed
+        /// over with nothing said about it: there is no diagnostic to report from here, and the weaving which would
+        /// have reported one is never run. A question which cannot be answered is therefore handed to the weaving,
+        /// which answers it by failing where it fails at all - and that failure is printed, with the type it stopped
+        /// at, because the process which runs the weaving prints what it throws.
+        /// </remarks>
         /// <param name="assembly">The assembly which was compiled.</param>
         /// <returns>Whether it declares one.</returns>
         public override bool WillProcess(ICompiledAssembly assembly)
         {
+            AssemblyDefinition image;
             try
             {
                 using var stream = new MemoryStream(assembly.InMemoryAssembly.PeData!);
-                using var image = AssemblyDefinition.ReadAssembly(stream);
-                return Types(image.MainModule).Any(Marks);
+                image = AssemblyDefinition.ReadAssembly(stream);
             }
             catch (Exception)
             {
-                // An image which cannot be read here is one the weaving would fail on as well, and the weaving reports
+                // An image which cannot be read here is one the weaving cannot read either, and the weaving reports
                 // that failure itself. Answering false leaves the assembly as it was compiled.
                 return false;
+            }
+
+            using (image)
+            {
+                try
+                {
+                    return Types(image.MainModule).Any(Marks);
+                }
+                catch (Exception)
+                {
+                    return true;
+                }
             }
         }
 
@@ -107,6 +127,12 @@ namespace Singleton.Editor
             {
                 // An assembly which could not be woven is left as it was compiled, and what went wrong is reported as
                 // an error of the compilation which produced the assembly rather than swallowed.
+                //
+                // The message is not written anywhere else: the weaving runs in a process of its own, which prints what
+                // it throws and none of what a processor answers it with, and `UnityEngine.Debug` cannot be called from
+                // there at all - it is a call of the engine, and the runtime the weaving runs on refuses it with
+                // `SecurityException: ECall methods must be packaged into a system module`. What a reader of the log
+                // finds is the exception which was thrown, with the type it was thrown at.
                 diagnostics.Add(Error($"The singletons of '{assembly.Name}' were not woven. {exception}"));
                 return new ILPostProcessResult(assembly.InMemoryAssembly, diagnostics);
             }
@@ -256,7 +282,12 @@ namespace Singleton.Editor
             {
                 // A MonoBehaviour belongs to a GameObject which Unity made or which the property made, so the instance
                 // Unity made is the one the field is given, and a second one is destroyed with its object.
-                if (unity == null) return false;
+                if (unity == null)
+                {
+                    return Stop($"'{type.FullName}' was not woven: the types of Unity which a message of it is written " +
+                                "against could not be read out of the assemblies which the image names.", diagnostics);
+                }
+
                 if (Message(type, "Awake", canBeOverridden: false) is not { } awake) return false;
 
                 Inject(awake, _ => Tell(unity, instance, destroyTheOther: singleton, keep: keep, invisible: invisible));
@@ -271,8 +302,20 @@ namespace Singleton.Editor
             }
 
             // The two attributes ask something of the GameObject of a MonoBehaviour, and the generator reports an
-            // attribute which is on a type which has none. Nothing is woven and nothing is reported here.
-            if (!singleton || !IsDerivedFrom(type, module, SCRIPTABLE_OBJECT)) return false;
+            // attribute which is on a type which has none. Nothing is woven and nothing is reported here for a type
+            // which asked for a singleton and is neither of the two, because that is what the generator makes with the
+            // constructor of the type or with a creator - but a type whose chain of base types cannot be read is one
+            // which is read as neither of the two whatever it is, and a weaving which stopped at it would stop at every
+            // singleton of the assembly without anything saying so.
+            if (!singleton || !IsDerivedFrom(type, module, SCRIPTABLE_OBJECT))
+            {
+                if (!Readable(type, module))
+                {
+                    return Stop($"'{type.FullName}' was not woven: the types it derives from could not be read.", diagnostics);
+                }
+
+                return false;
+            }
 
             // A ScriptableObject is a value which Unity loads, and there is no object of it to destroy: a second one
             // which is enabled is simply left out of the field. The messages of a ScriptableObject name nothing of
