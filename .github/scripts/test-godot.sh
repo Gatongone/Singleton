@@ -86,10 +86,10 @@ import_project() {
 }
 
 echo "building the generator"
-dotnet build "$root/Godot/Generator~/Singleton.Generator.csproj" -c Release "${quiet[@]}"
+dotnet build "$root/Godot/Generator/Singleton.Generator.csproj" -c Release "${quiet[@]}"
 
 echo "building the weaver"
-dotnet build "$root/Godot/Weaver~/Singleton.Weaver.csproj" -c Release "${quiet[@]}"
+dotnet build "$root/Godot/Weaver/Singleton.Weaver.csproj" -c Release "${quiet[@]}"
 
 # The addon is assembled by the same project which is packed, so this writes both what a registry is given and what is
 # attached to a release.
