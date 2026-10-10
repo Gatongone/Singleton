@@ -1,17 +1,24 @@
-# What the workflow of a release runs before it publishes is run here on every push to the branch the releases are cut
-# from and on every pull request: a suite which is first run when a version is being published is a suite which reports
-# a fault of a commit made weeks ago, at the one moment where stopping is most expensive and where nobody is looking for
-# it.
+# What the tree is held to on every push to the branch the releases are cut from and on every pull request: a suite
+# which is first run when a version is being published is a suite which reports a fault of a commit made weeks ago, at
+# the one moment where stopping is most expensive and where nobody is looking for it.
+#
+# The suite has a leg for each of the two packages, and both are jobs of this one workflow rather than a workflow each.
+# What a reader of the tree wants is one answer per push, and two files which both answer to a push are two runs which
+# have to be read together to be read at all - one of them green and one of them red is not two answers, it is one.
+# Held here, a push is one run with a job per leg, and a leg which failed is a run which failed.
+#
+# The two legs are asked different things, which is why they are two jobs rather than one. The package of Unity is held
+# to what a runner which holds no editor can answer - that its generator compiles, and that the plugin it ships is the
+# generator of these sources - because its suite is a suite of an editor. The package of Godot is held to a suite of an
+# engine, and an engine is a program a runner can simply be given; what that leg downloads is written out below.
+#
+# What the two share is the shape - a check out, the SDK the tree is built with, and a script which holds the commands
+# - and the commands of each are in the script that leg runs rather than named here a second time: what each run is for
+# is written out where the commands are, once.
 #
 # The runner is the one the workflow of a release runs on, and for the same reason: the plugin which the package of
 # Unity ships is a binary which is committed, and it is built again by that workflow, so a run here and a run there are
-# a run of the same platform rather than of two. Nothing below asks for the platform - the generator is built for
-# netstandard2.0 and the script is Python - and the two are held to one of them rather than left to differ where a
-# release would be the first to find out.
-#
-# The commands below are the ones that workflow holds, word for word, so that a run of this one and a run of that one
-# answer the same way. They are taken from the script which that workflow runs as well rather than named here a second
-# time; the reason each of them is there is written out where the commands are.
+# a run of the same platform rather than of two.
 name: Build
 
 on:
@@ -28,12 +35,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Nothing is written: what this reads is the tree and the packages it is built from, and what it answers with is a run.
+# Nothing is written: what this reads is the tree, the packages it is built from, and the engine it downloads, and what
+# it answers with is a run.
 permissions:
   contents: read
 
 jobs:
-  build:
+  unity:
     runs-on: windows-latest
 
     steps:
@@ -49,17 +57,19 @@ jobs:
       - name: Set up the SDK which the tree is built with
         uses: actions/setup-dotnet@v5
         with:
-          # The SDK which the generator is built with, which is the one its language belongs to, and the one
-          # `global.json` holds the tree to: a project which a machine builds with whichever SDK happens to be newest
-          # there is a project which is built against two compilers by two readers of one commit.
+          # The SDK which the generator and the weaver are built with and the suite is built with, which is the one
+          # `global.json` holds the tree to, and the one the other leg asks for: a tree whose two halves are built by
+          # two compilers is a tree which two readers of one commit read differently.
           dotnet-version: 10.0.x
 
       - name: Test the script which writes the version into the files
-        # The version is written into every file which names one, and the readme is read by whoever is deciding what to
-        # install, so a readme which was left at the version of the release before this one is a reader who is sent to a
-        # package of that version. What keeps the two together is the script beside it, which is tested here as well as
-        # before a release runs it: a placeholder which stopped matching the readme it was written for is a commit which
-        # breaks the next release rather than the one it is in.
+        # The version is written into every file of either package which names one - the package of Unity from its
+        # `package.json` and its readme, and the package of Godot from the one file both of its projects read - and the
+        # readme is read by whoever is deciding what to install, so a readme which was left at the version of the
+        # release before this one is a reader who is sent to a package of that version. What keeps the two together is
+        # the script beside it, which is tested here as well as before a release runs it: a placeholder which stopped
+        # matching the readme it was written for is a commit which breaks the next release rather than the one it is
+        # in. It is one script over both packages, so it is run once rather than once a leg.
         shell: bash
         run: python .github/scripts/set-version-tests.py
 
@@ -68,3 +78,50 @@ jobs:
         # here a second time: what each run is for is written out where the commands are.
         shell: bash
         run: bash .github/scripts/test.sh
+
+  godot:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up the SDK which the tree is built with
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download the engine which the suite is run with
+        # The engine is not installed on the runner, so it is fetched here and named for the script which runs it. The
+        # name is the tag of the release, and the file is the one that tag publishes: taken together, a run here is a
+        # run of a known engine rather than of whichever one a runner happens to carry.
+        shell: pwsh
+        env:
+          GODOT_VERSION: 4.7-stable
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'godot.zip'
+          $directory = Join-Path $env:RUNNER_TEMP 'godot'
+          $asset = "Godot_v$($env:GODOT_VERSION)_mono_win64.zip"
+          $url = "https://github.com/godotengine/godot/releases/download/$($env:GODOT_VERSION)/$asset"
+
+          Write-Host "downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $directory
+
+          # The archive holds the editor twice: once as the program which shows a window, and once as one which writes
+          # to the console it was started from. The first is the one to run, because the second looks for the first
+          # beside it under the name the archive gave it, and the suite redirects what it printed to a file anyway.
+          $engine = Get-ChildItem $directory -Recurse -Filter 'Godot_v*_mono_win64.exe' |
+                    Where-Object { $_.Name -notlike '*console*' } |
+                    Select-Object -First 1
+
+          if (-not $engine) { throw "the engine was not among the files of $asset" }
+
+          Write-Host "the engine is $($engine.FullName)"
+          "GODOT=$($engine.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Test
+        # What is run is the script which the commands live in rather than the commands themselves, and it is the same
+        # script whether it is run here or by hand.
+        shell: bash
+        run: bash .github/scripts/test-godot.sh
