@@ -103,7 +103,27 @@ jobs:
         # belong to. The build of the project copies it to the plugin on its own only when the copy is asked for, which
         # it is here: a plain build leaves the plugin where it is, so that a working tree is not dirtied by being built.
         shell: bash
-        run: dotnet build 'Generator~/Singleton.Generator.csproj' -c Release -p:CopyWeaverToUnity=true
+        run: dotnet build 'Unity/Generator~/Singleton.Generator.csproj' -c Release -p:CopyWeaverToUnity=true
+
+      - name: Build the archives which the release carries
+        # What is published to a registry is not a file a reader can take away: the package of Godot is a set of files
+        # which a manager resolves, and so is the package of Unity. These two are each the whole thing in one file - the
+        # addon, which is a folder a Godot project is given, and the asset package, which a Unity project imports - and
+        # they are attached to the release so that a reader who wants neither a registry nor a manager has something to
+        # take. Both are built from the tree the version was just written into.
+        shell: bash
+        run: |
+          dotnet pack 'Godot/Singleton.Godot.csproj' -c Release -o "$RUNNER_TEMP/assets"
+
+          # The addon is written beside the project which assembles it rather than into the folder which was named for
+          # the package, because it is not the package: it is the other way the same thing is installed.
+          cp Godot/bin/Release/Singleton.Godot.addons.*.zip "$RUNNER_TEMP/assets/"
+
+          # The asset package carries the file a manager would have resolved for it, which is fetched here from the
+          # registry of Unity at the version the package of Unity depends on.
+          python .github/scripts/make-unitypackage.py "$RUNNER_TEMP/assets/Singleton-${{ steps.version.outputs.version }}.unitypackage"
+
+          ls -l "$RUNNER_TEMP/assets"
 
       - name: Commit what is being published, and move the tag to it
         # The commit carries everything which the release publishes: the version in each file which names one, and the
@@ -164,9 +184,9 @@ jobs:
         # OpenUPM is the other place this is published, and nothing is pushed to it from here: it reads the package out
         # of the tree of the tag, which was moved onto this release above.
         #
-        # What npm packs is the root of the repository, which is the package itself, and `.npmignore` is what keeps the
-        # generator's project and the plumbing of the repository out of it: the generator is published as the plugin
-        # which the package ships, and a consumer is handed no copy of the project which built it.
+        # What npm packs is the folder of the package, which is the package itself, and `.npmignore` is what keeps the
+        # project which built the generator out of it: the generator is published as the plugin which the package
+        # ships, and a consumer is handed no copy of the project which built it.
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -181,11 +201,23 @@ jobs:
           # A publish which fails is tried again, because the registry refuses a request which arrives while another
           # one for the same name is being answered.
           for attempt in 1 2 3; do
-            if npm stage publish; then exit 0; fi
+            if (cd Unity && npm stage publish); then exit 0; fi
             echo "staging com.gatongone.singleton@$VERSION failed on attempt $attempt, trying again"
             sleep 5
           done
           exit 1
+
+      - name: Attach the archives to the release
+        # The tag was moved onto the commit which carries the version, so what is attached is the two files built from
+        # that commit rather than from the one the release was cut at. `--clobber` is what makes a release which is
+        # published again answer with the files of this run rather than refuse the ones which are there.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          ls -l "$RUNNER_TEMP/assets"
+          gh release upload "$TAG" "$RUNNER_TEMP"/assets/* --clobber
 
       - name: Write the notes of the release
         shell: bash

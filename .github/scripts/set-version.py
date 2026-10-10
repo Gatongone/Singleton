@@ -29,16 +29,21 @@ REVISION_PLACEHOLDER = (r'("com\.gatongone\.singleton"\s*:\s*'
                         r'"https://github\.com/Gatongone/Singleton\.git#v)(%s)(")' % VERSION.pattern)
 REGISTRY_PLACEHOLDER = r'("com\.gatongone\.singleton"\s*:\s*")(%s)(")' % VERSION.pattern
 
-# What a version is written into: the text before it, the version itself, and the text after it.
+# What a version is written into: the text before it, the version itself, and the text after it. The paths are the ones
+# of this repository, where each package is a folder of its own: what a manager is handed is the folder of a package
+# rather than the tree, so the files which carry a version are the ones inside them.
 VERSIONS = [
-    ("package.json", r'("version"\s*:\s*")([^"]*)(")', "package.json version"),
+    ("Unity/package.json", r'("version"\s*:\s*")([^"]*)(")', "the version of the package of Unity"),
     # The readme, which is read by whoever is deciding what to install: one which is written by hand names the release
     # before the one being made from the moment that one is made, and the tag it is read at is one which the release
     # moved, so what it says has to be written here, before the commit which the tag is moved onto. The placeholders it
     # holds are two - the tag a package of the repository is read at, and the version a package of a registry is read
     # at, which the two registries it names hold one of each.
-    ("README.md", REVISION_PLACEHOLDER, "the revision of a package of the repository"),
-    ("README.md", REGISTRY_PLACEHOLDER, "the version of a package of a registry"),
+    ("Unity/README.md", REVISION_PLACEHOLDER, "the revision of a package of the repository"),
+    ("Unity/README.md", REGISTRY_PLACEHOLDER, "the version of a package of a registry"),
+    # The package of Godot names its version once, in the one file both of its projects read, so that the project which
+    # is packed and the suite which installs it cannot be written apart.
+    ("Godot/Directory.Build.props", r"(<Version>)([^<]*)(</Version>)", "the version of the package of Godot"),
 ]
 
 

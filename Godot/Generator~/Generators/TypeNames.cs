@@ -5,7 +5,7 @@ namespace Singleton.Generator
     /// </summary>
     /// <remarks>
     /// A compilation which does not hold one of the types which are read off it is one which the generator has nothing
-    /// to say about, and the parts of the generated code which name a type of Unity are written only where that type is
+    /// to say about, and the parts of the generated code which name a type of Godot are written only where that type is
     /// there to name.
     /// </remarks>
     internal static class TypeNames
@@ -22,22 +22,16 @@ namespace Singleton.Generator
         /// <summary>The type a creator is named by, which is looked up by name because it has no special type of its own.</summary>
         public const string SYSTEM_TYPE = "System.Type";
 
-        /// <summary>Keeps the object of a singleton across scene loads.</summary>
+        /// <summary>Keeps the node of a singleton across a change of scene.</summary>
         public const string PERSISTENT_ATTRIBUTE = "Singleton.Runtime.PersistentAttribute";
 
-        /// <summary>Takes the object of a singleton out of the hierarchy, the Inspector and what a save writes.</summary>
-        public const string INVISIBLE_ATTRIBUTE = "Singleton.Runtime.InvisibleAttribute";
+        /// <summary>Lets the singleton be the node which is already in the scene tree.</summary>
+        public const string REUSABLE_ATTRIBUTE = "Singleton.Runtime.ReusableAttribute";
 
-        /// <summary>The type a singleton is given an <c>Awake</c> for.</summary>
-        public const string MONO_BEHAVIOUR = "UnityEngine.MonoBehaviour";
+        /// <summary>The type a singleton is given the notifications of the tree for.</summary>
+        public const string NODE = "Godot.Node";
 
-        /// <summary>The type a singleton is given an <c>OnEnable</c> for.</summary>
-        public const string SCRIPTABLE_OBJECT = "UnityEngine.ScriptableObject";
-
-        /// <summary>The type an <c>Addressable</c> singleton is loaded with.</summary>
-        public const string ADDRESSABLES = "UnityEngine.AddressableAssets.Addressables";
-
-        /// <summary>The enumeration an <c>Addressable</c> load is read by.</summary>
-        public const string ASYNC_OPERATION_STATUS = "UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationStatus";
+        /// <summary>The type a singleton is loaded as where it is an asset the loader remembers.</summary>
+        public const string RESOURCE = "Godot.Resource";
     }
 }

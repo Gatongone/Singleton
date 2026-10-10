@@ -1,0 +1,8 @@
+# What the package of Unity does not carry. The generator is published as the plugin which the package ships, so the
+# project which built it - and this list itself - are none of them a part of what a consumer installs.
+#
+# The plumbing of the repository is not named here, because none of it is in this folder: the configuration of the
+# repository, of the editor any of it is read in, and of what git leaves alone are one each at the root of the
+# repository, and this is the folder a package manager is given.
+Generator~
+.npmignore

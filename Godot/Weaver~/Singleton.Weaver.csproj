@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>13</LangVersion>
+        <RootNamespace>Singleton.Weaver</RootNamespace>
+        <AssemblyName>Singleton.Weaver</AssemblyName>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <!-- The weaver is run by whatever runtime the project which asked for it builds with, which is the one of the
+             engine that project is using rather than the one this was compiled against. -->
+        <RollForward>LatestMajor</RollForward>
+        <!-- The weaver is the folder and nothing else, so that a folder which is added beside it - the output of a
+             build - is not read into it. -->
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="*.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+    </ItemGroup>
+</Project>

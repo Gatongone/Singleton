@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -61,6 +62,11 @@ namespace Singleton.Generator
 
         /// <summary>Whether the object is to be taken out of the hierarchy, the Inspector and what a save writes.</summary>
         public bool Invisible { get; set; }
+
+        /// <summary>
+        /// Whether the instance may be one the engine already made, which is what a search for it is written for.
+        /// </summary>
+        public bool Reusable { get; set; }
 
         /// <summary>
         /// Whether a type which this one derives from asked for a singleton of its own, so that what is written here
@@ -149,7 +155,7 @@ namespace Singleton.Generator
             builder.Append(indent).AppendLine("/// <summary>The instance, which is null until one is made.</summary>");
             builder.Append(indent).Append("private static ").Append(qualified).AppendLine("? s_Instance;");
             builder.AppendLine();
-            builder.Append(indent).Append("/// <summary>").Append(Summary(target.Instance)).AppendLine("</summary>");
+            builder.Append(indent).Append("/// <summary>").Append(Summary(target)).AppendLine("</summary>");
             builder.Append(indent).Append(Modifiers(target)).Append(qualified).AppendLine(" Instance");
             builder.Append(indent).AppendLine("{");
             builder.Append(indent).AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
@@ -223,30 +229,34 @@ namespace Singleton.Generator
         /// </summary>
         /// <remarks>
         /// A reader of the generated half of a type is a reader who went looking for what the property does, and what
-        /// it does is not one thing: a type which Unity makes is looked for before anything is made, and a type which
-        /// an asset is loaded from is loaded. What is written is therefore what this singleton makes its instance with
-        /// rather than one sentence for every one of them, which would be a sentence this one is not.
+        /// it does is not one thing: a type which Unity makes is looked for before anything is made where the type
+        /// asked to be reusable, and a type which an asset is loaded from is loaded. What is written is therefore what
+        /// this singleton makes its instance with rather than one sentence for every one of them, which would be a
+        /// sentence this one is not.
         /// </remarks>
-        /// <param name="instance">How the instance is first made.</param>
+        /// <param name="target">The singleton.</param>
         /// <returns>The summary of the property.</returns>
-        private static string Summary(SingletonInstance instance) => instance switch
+        private static string Summary(SingletonTarget target) => target.Instance switch
         {
             SingletonInstance.Newable =>
                 "The instance of the singleton, which the constructor of the type makes the first time it is read.",
             SingletonInstance.Creator =>
                 "The instance of the singleton, which the creator the attribute named makes the first time it is read.",
-            SingletonInstance.ResourcesMonoBehaviour =>
-                "The instance of the singleton, which is looked for in the scene and loaded from the prefab where there is none.",
+            SingletonInstance.ResourcesMonoBehaviour => target.Reusable
+                ? "The instance of the singleton, which is looked for in the scene and loaded from the prefab where there is none."
+                : "The instance of the singleton, which is loaded from the prefab the first time it is read.",
             SingletonInstance.ResourcesScriptableObject =>
                 "The instance of the singleton, which is loaded from the asset the first time it is read.",
-            SingletonInstance.AddressableMonoBehaviour =>
-                "The instance of the singleton, which is looked for in the scene and loaded from the address where there is none.",
+            SingletonInstance.AddressableMonoBehaviour => target.Reusable
+                ? "The instance of the singleton, which is looked for in the scene and loaded from the address where there is none."
+                : "The instance of the singleton, which is loaded from the address the first time it is read.",
             SingletonInstance.AddressableScriptableObject =>
                 "The instance of the singleton, which is loaded from the address the first time it is read.",
-            SingletonInstance.MonoBehaviour =>
-                "The instance of the singleton, which is looked for in the scene and made on a new GameObject where there is none.",
+            SingletonInstance.MonoBehaviour => target.Reusable
+                ? "The instance of the singleton, which is looked for in the scene and made on a new GameObject where there is none."
+                : "The instance of the singleton, which is made on a new GameObject the first time it is read.",
             SingletonInstance.ScriptableObject =>
-                "The instance of the singleton, which is looked for in the scene and made where there is none.",
+                "The instance of the singleton, which is made with CreateInstance the first time it is read.",
             // A member of the enumeration which no arm above names is one this was not written for, and the sentence it
             // is given is the one which is true of every singleton rather than of the one which makes it.
             _ =>
@@ -284,41 +294,36 @@ namespace Singleton.Generator
                     break;
 
                 case SingletonInstance.MonoBehaviour:
-                    builder.Append(indent).AppendLine("if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("{");
-                    WriteFind(builder, indent + "    ", qualified);
-                    builder.Append(indent).AppendLine("    if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("    {");
-                    builder.Append(indent).Append("        var go = new global::UnityEngine.GameObject(nameof(").Append(target.Type.Name).AppendLine("));");
-                    builder.Append(indent).AppendLine("        go.SetActive(false);");
-                    builder.Append(indent).Append("        s_Instance = go.AddComponent<").Append(qualified).AppendLine(">();");
-                    builder.Append(indent).AppendLine("        go.SetActive(true);");
-                    builder.Append(indent).AppendLine("    }");
-                    builder.Append(indent).AppendLine("}");
+                    WriteMake(builder, indent, target, qualified, body =>
+                    {
+                        builder.Append(body).Append("var go = new global::UnityEngine.GameObject(nameof(").Append(target.Type.Name).AppendLine("));");
+                        builder.Append(body).AppendLine("go.SetActive(false);");
+                        builder.Append(body).Append("s_Instance = go.AddComponent<").Append(qualified).AppendLine(">();");
+                        builder.Append(body).AppendLine("go.SetActive(true);");
+                    });
                     break;
 
                 case SingletonInstance.ScriptableObject:
+                    // A ScriptableObject is an asset, and the search a reusable singleton is given answers with no
+                    // asset at all, so there is nothing to look for here and the instance is always the one which
+                    // CreateInstance makes. The attribute is refused on one rather than written and left to find
+                    // nothing.
                     builder.Append(indent).AppendLine("if (s_Instance == null)");
                     builder.Append(indent).AppendLine("{");
-                    WriteFind(builder, indent + "    ", qualified);
-                    builder.Append(indent).Append("    if (s_Instance == null) s_Instance = global::UnityEngine.ScriptableObject.CreateInstance<")
+                    builder.Append(indent).Append("    s_Instance = global::UnityEngine.ScriptableObject.CreateInstance<")
                            .Append(qualified).AppendLine(">();");
                     builder.Append(indent).AppendLine("}");
                     break;
 
                 case SingletonInstance.ResourcesMonoBehaviour:
-                    builder.Append(indent).AppendLine("if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("{");
-                    WriteFind(builder, indent + "    ", qualified);
-                    builder.Append(indent).AppendLine("    if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("    {");
-                    WriteAssetPath(builder, indent + "        ", target.AssetPath!);
-                    builder.Append(indent).Append("        var prefab = global::UnityEngine.Resources.Load<global::UnityEngine.GameObject>(assetPath);").AppendLine();
-                    builder.Append(indent).AppendLine("        if (prefab == null) throw new global::System.ArgumentException($\"Failed to load singleton resource at path: {assetPath}\");");
-                    builder.Append(indent).AppendLine("        var go = global::UnityEngine.Object.Instantiate(prefab);");
-                    builder.Append(indent).Append("        s_Instance = go.GetComponent<").Append(qualified).AppendLine(">();");
-                    builder.Append(indent).AppendLine("    }");
-                    builder.Append(indent).AppendLine("}");
+                    WriteMake(builder, indent, target, qualified, body =>
+                    {
+                        WriteAssetPath(builder, body, target.AssetPath!);
+                        builder.Append(body).AppendLine("var prefab = global::UnityEngine.Resources.Load<global::UnityEngine.GameObject>(assetPath);");
+                        builder.Append(body).AppendLine("if (prefab == null) throw new global::System.ArgumentException($\"Failed to load singleton resource at path: {assetPath}\");");
+                        builder.Append(body).AppendLine("var go = global::UnityEngine.Object.Instantiate(prefab);");
+                        builder.Append(body).Append("s_Instance = go.GetComponent<").Append(qualified).AppendLine(">();");
+                    });
                     break;
 
                 case SingletonInstance.ResourcesScriptableObject:
@@ -331,18 +336,14 @@ namespace Singleton.Generator
                     break;
 
                 case SingletonInstance.AddressableMonoBehaviour:
-                    builder.Append(indent).AppendLine("if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("{");
-                    WriteFind(builder, indent + "    ", qualified);
-                    builder.Append(indent).AppendLine("    if (s_Instance == null)");
-                    builder.Append(indent).AppendLine("    {");
-                    WriteAssetPath(builder, indent + "        ", target.AssetPath!);
-                    builder.Append(indent).AppendLine("        var op = global::UnityEngine.AddressableAssets.Addressables.InstantiateAsync(assetPath);");
-                    builder.Append(indent).AppendLine("        op.WaitForCompletion();");
-                    builder.Append(indent).AppendLine("        if (op.Status != global::UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationStatus.Succeeded) throw new global::System.ArgumentException($\"Failed to load singleton resource at path: {assetPath}\");");
-                    builder.Append(indent).Append("        s_Instance = op.Result.GetComponent<").Append(qualified).AppendLine(">();");
-                    builder.Append(indent).AppendLine("    }");
-                    builder.Append(indent).AppendLine("}");
+                    WriteMake(builder, indent, target, qualified, body =>
+                    {
+                        WriteAssetPath(builder, body, target.AssetPath!);
+                        builder.Append(body).AppendLine("var op = global::UnityEngine.AddressableAssets.Addressables.InstantiateAsync(assetPath);");
+                        builder.Append(body).AppendLine("op.WaitForCompletion();");
+                        builder.Append(body).AppendLine("if (op.Status != global::UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationStatus.Succeeded) throw new global::System.ArgumentException($\"Failed to load singleton resource at path: {assetPath}\");");
+                        builder.Append(body).Append("s_Instance = op.Result.GetComponent<").Append(qualified).AppendLine(">();");
+                    });
                     break;
 
                 case SingletonInstance.AddressableScriptableObject:
@@ -358,6 +359,42 @@ namespace Singleton.Generator
             }
 
             builder.Append(indent).AppendLine("return s_Instance!;");
+        }
+
+        /// <summary>
+        /// Write the body which makes the instance where there is none, looking for the one the engine already made
+        /// first where the type asked to be reusable.
+        /// </summary>
+        /// <remarks>
+        /// Both the search and the guard which follows it are written only for a type which asked for them: a type
+        /// which asked for nothing never searched, so the second test would be one which is true every time it is
+        /// reached, and a reader would be given a test which decides nothing.
+        /// </remarks>
+        /// <param name="builder">The file.</param>
+        /// <param name="indent">What the body is indented with.</param>
+        /// <param name="target">The singleton.</param>
+        /// <param name="qualified">The name of the type, written in full.</param>
+        /// <param name="make">What writes what is done where neither the field nor the search answered with one.</param>
+        private static void WriteMake(StringBuilder builder, string indent, SingletonTarget target, string qualified,
+                                      Action<string> make)
+        {
+            builder.Append(indent).AppendLine("if (s_Instance == null)");
+            builder.Append(indent).AppendLine("{");
+
+            var body = indent + "    ";
+
+            if (target.Reusable)
+            {
+                WriteFind(builder, body, qualified);
+                builder.Append(body).AppendLine("if (s_Instance == null)");
+                builder.Append(body).AppendLine("{");
+                body += "    ";
+            }
+
+            make(body);
+
+            if (target.Reusable) builder.Append(indent).AppendLine("    }");
+            builder.Append(indent).AppendLine("}");
         }
 
         /// <summary>

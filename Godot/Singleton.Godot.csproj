@@ -1,0 +1,132 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      What is published as the Godot package of Singleton.
+
+      It carries four things and no assembly of its own: the runtime as source, which is compiled by the project which
+      asked for it; the generator as an analyzer; the weaver as a program; and the two targets which hand the last three
+      to a build. Nothing here is a dependency of the project which installs it, so it is given no dependencies of its
+      own either.
+    -->
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>13</LangVersion>
+        <PackageId>Singleton.Godot</PackageId>
+        <Authors>Gatongone</Authors>
+        <Description>Build a singleton in Godot without a base type: a partial class, an attribute, and an Instance which is the same one every time it is read.</Description>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/Gatongone/Singleton</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Gatongone/Singleton.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageTags>singleton;godot;csharp;source-generator;mono.cecil</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+
+        <!-- What is packed is a set of files rather than the assembly this project would otherwise produce. -->
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
+        <IncludeSymbols>false</IncludeSymbols>
+        <DebugType>none</DebugType>
+
+        <!-- What this project compiles is one file. Everything else under it belongs to a project of its own, which is
+             beside this one rather than part of it, and a folder named with a `~` is one such a project: the glob the
+             compiler would otherwise walk is told to leave them, and the output of every build with them. -->
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <DefaultItemExcludes>$(DefaultItemExcludes);Generator~\**;Weaver~\**;Runtime\**;bin\**;obj\**</DefaultItemExcludes>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Pack.cs" />
+    </ItemGroup>
+
+    <!-- Built first, so that what they wrote is there to be packed. -->
+    <ItemGroup>
+        <ProjectReference Include="Generator~\Singleton.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+        <ProjectReference Include="Weaver~\Singleton.Weaver.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="build\**" Pack="true" PackagePath="build\" />
+        <None Include="Runtime\*.cs" Pack="true" PackagePath="src\Singleton.Runtime\" />
+        <None Include="README.md" Pack="true" PackagePath="\" />
+        <!-- The license is one file for the whole repository, and what is packed is the text of it beside the readme
+             which names it: a package which says which license it is under and carries neither the text nor the
+             copyright is one a reader has to go looking for. -->
+        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="Generator~\bin\$(Configuration)\netstandard2.0\Singleton.Generator.dll"
+              Pack="true" PackagePath="analyzers\dotnet\cs\" />
+    </ItemGroup>
+
+    <!-- The weaver is a program, so what it runs with is packed beside it rather than left to be found. -->
+    <ItemGroup>
+        <None Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.dll"
+              Pack="true" PackagePath="tools\net8.0\" />
+        <None Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.deps.json"
+              Pack="true" PackagePath="tools\net8.0\" />
+        <None Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.runtimeconfig.json"
+              Pack="true" PackagePath="tools\net8.0\" />
+        <None Include="Weaver~\bin\$(Configuration)\net8.0\Mono.Cecil*.dll"
+              Pack="true" PackagePath="tools\net8.0\" />
+    </ItemGroup>
+
+    <!--
+      The addon, which is the other way this is installed: a folder of the project rather than a package, which is what
+      a project that keeps what it uses in its own tree - or one that takes it from the asset library of Godot - wants.
+      It carries the same three things as the package and lays them out differently: the runtime is a folder of the
+      project and so needs no line of the build at all, and the two that do - the generator and the weaver - are named
+      by a file the plugin writes.
+
+      What is assembled here is the whole tree, so that what a release attaches is the same bytes as what was tested
+      rather than a folder rebuilt somewhere else.
+    -->
+    <ItemGroup>
+        <AddonRoot Include="Addon\SingletonPlugin.gd" />
+        <AddonRoot Include="Addon\Singleton.Godot.props" />
+        <AddonRoot Include="Addon\Singleton.Godot.targets" />
+        <AddonRoot Include="Generator~\bin\$(Configuration)\netstandard2.0\Singleton.Generator.dll" />
+        <AddonRoot Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.dll" />
+        <AddonRoot Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.deps.json" />
+        <AddonRoot Include="Weaver~\bin\$(Configuration)\net8.0\Singleton.Weaver.runtimeconfig.json" />
+        <AddonRoot Include="Weaver~\bin\$(Configuration)\net8.0\Mono.Cecil*.dll" />
+        <AddonRuntime Include="Runtime\*.cs" />
+    </ItemGroup>
+
+    <!-- The version of the addon is the version of the package, and it is written here rather than kept in a second
+         file: a plugin.cfg which names a version of its own is one a release has to remember to write as well. -->
+    <ItemGroup>
+        <AddonPluginCfg Include="[plugin]" />
+        <AddonPluginCfg Include="name=&quot;Singleton&quot;" />
+        <AddonPluginCfg Include="description=&quot;Build a singleton without a base type. Switching this on hands the generator and the weaver to the build of the project, which is what makes [Singleton] work.&quot;" />
+        <AddonPluginCfg Include="author=&quot;Gatongone&quot;" />
+        <AddonPluginCfg Include="version=&quot;$(Version)&quot;" />
+        <AddonPluginCfg Include="script=&quot;SingletonPlugin.gd&quot;" />
+    </ItemGroup>
+
+    <Target Name="SingletonGodotAddon" AfterTargets="Build">
+        <!-- Read inside the target rather than beside it: IntermediateOutputPath is written by the targets of the SDK,
+             which are read after the body of a project, so a property of the body which names it names nothing. -->
+        <PropertyGroup>
+            <AddonStage>$(IntermediateOutputPath)addon\addons\singleton\</AddonStage>
+            <AddonZip>$(MSBuildThisFileDirectory)bin\$(Configuration)\Singleton.Godot.addons.$(Version).zip</AddonZip>
+            <AddonStaging>$(IntermediateOutputPath)addon</AddonStaging>
+        </PropertyGroup>
+
+        <RemoveDir Directories="$(AddonStaging)" />
+        <MakeDir Directories="$(AddonStage)Runtime" />
+
+        <Copy SourceFiles="@(AddonRoot)" DestinationFolder="$(AddonStage)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(AddonRuntime)" DestinationFolder="$(AddonStage)Runtime" SkipUnchangedFiles="true" />
+
+        <WriteLinesToFile File="$(AddonStage)plugin.cfg" Lines="@(AddonPluginCfg)" Overwrite="true" />
+
+        <MakeDir Directories="$(MSBuildThisFileDirectory)bin\$(Configuration)" />
+        <ZipDirectory SourceDirectory="$(AddonStaging)" DestinationFile="$(AddonZip)" Overwrite="true" />
+
+        <Message Text="Singleton: the addon is at $(AddonZip)" Importance="high" />
+    </Target>
+
+</Project>

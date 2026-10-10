@@ -1,0 +1,18 @@
+<Project>
+
+  <!--
+    What an addon install is given before it is built, which is one thing: the generator, named to the compiler.
+
+    The runtime is not here, and that is the difference between this and the package. A package hands the runtime over
+    because the project it is installed into cannot see it; an addon is a folder of the project, so the compiler reads
+    it already - the default items of a Godot project are every `.cs` under it - and naming it here as well would be
+    naming every file of it twice, which is a build which stops.
+
+    This file is read from the Directory.Build.props which the plugin writes at the root of the project.
+  -->
+
+  <ItemGroup Condition="'$(SingletonGodotDisable)' != 'true'">
+    <Analyzer Include="$(MSBuildThisFileDirectory)Singleton.Generator.dll" />
+  </ItemGroup>
+
+</Project>

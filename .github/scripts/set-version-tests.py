@@ -29,15 +29,17 @@ REPOSITORY = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = REPOSITORY / ".github" / "scripts" / "set-version.py"
 
 # The files the script reads and writes, at the paths it reads them by. The readme is one of them, because it says the
-# version a reader installs as well as the package does.
+# version a reader installs as well as the package does, and the file of the package of Godot is one because both of its
+# projects read their version out of it.
 FILES = [
-    "package.json",
-    "README.md",
+    "Unity/package.json",
+    "Unity/README.md",
+    "Godot/Directory.Build.props",
 ]
 
 # The version which the repository names today, which is read out of the package which is packed.
 CURRENT = re.search(r'"version"\s*:\s*"([^"]*)"',
-                    (REPOSITORY / "package.json").read_text(encoding="utf-8")).group(1)
+                    (REPOSITORY / "Unity" / "package.json").read_text(encoding="utf-8")).group(1)
 
 # The script under test, which is imported so that the patterns it writes with are the ones the tests assert against.
 SPEC = importlib.util.spec_from_file_location("set_version", SCRIPT)
@@ -81,18 +83,18 @@ class SetVersion(unittest.TestCase):
         written = self.run_script("1.2.3")
         self.assertEqual(written.returncode, 0, written.stderr)
 
-        self.assertEqual(set(self.versions("README.md")), {"1.2.3"}, "a placeholder of README.md was not written")
-        self.assertNotIn(CURRENT, self.read("README.md"), f"README.md still names {CURRENT}")
+        self.assertEqual(set(self.versions("Unity/README.md")), {"1.2.3"}, "a placeholder of README.md was not written")
+        self.assertNotIn(CURRENT, self.read("Unity/README.md"), f"README.md still names {CURRENT}")
 
     def test_a_readme_which_is_taken_from_the_repository_keeps_its_url(self) -> None:
         """The revision of a placeholder which names a tag is written without taking the URL for a version."""
-        urls = set(re.findall(r"https://github\.com/Gatongone/Singleton\.git", self.read("README.md")))
+        urls = set(re.findall(r"https://github\.com/Gatongone/Singleton\.git", self.read("Unity/README.md")))
         self.assertTrue(urls, "README.md names no package of the repository, and this test reads one")
 
         written = self.run_script("1.2.3")
         self.assertEqual(written.returncode, 0, written.stderr)
 
-        text = self.read("README.md")
+        text = self.read("Unity/README.md")
         for url in urls:
             self.assertIn(f"{url}#v1.2.3", text, f"README.md no longer names {url}")
 
@@ -111,18 +113,18 @@ class SetVersion(unittest.TestCase):
     def test_a_version_which_no_placeholder_names_is_left_alone(self) -> None:
         """A version in the prose of a readme is the author's, and is not the one being released."""
         prose = "The examples above were written with 4.5.6 of the package, which is not this release.\n"
-        self.write("README.md", self.read("README.md") + prose)
+        self.write("Unity/README.md", self.read("Unity/README.md") + prose)
 
         written = self.run_script("1.2.3")
         self.assertEqual(written.returncode, 0, written.stderr)
 
-        self.assertIn("4.5.6", self.read("README.md"))
-        self.assertEqual(set(self.versions("README.md")), {"1.2.3"})
+        self.assertIn("4.5.6", self.read("Unity/README.md"))
+        self.assertEqual(set(self.versions("Unity/README.md")), {"1.2.3"})
 
     def test_a_readme_which_lost_a_placeholder_stops_the_run(self) -> None:
         """A readme which no longer holds what the version is written into is refused rather than passed over."""
-        readme = self.read("README.md")
-        self.write("README.md", "\n".join(line for line in readme.splitlines() if ".git#" not in line))
+        readme = self.read("Unity/README.md")
+        self.write("Unity/README.md", "\n".join(line for line in readme.splitlines() if ".git#" not in line))
 
         written = self.run_script("1.2.3")
         self.assertNotEqual(written.returncode, 0)
@@ -130,7 +132,7 @@ class SetVersion(unittest.TestCase):
 
     def test_check_refuses_a_readme_which_names_another_version(self) -> None:
         """A readme which names a version other than the one of the release stops the run."""
-        self.write("README.md", self.read("README.md").replace(CURRENT, "9.9.9"))
+        self.write("Unity/README.md", self.read("Unity/README.md").replace(CURRENT, "9.9.9"))
 
         checked = self.run_script("--check", CURRENT)
         self.assertNotEqual(checked.returncode, 0)
@@ -142,17 +144,30 @@ class SetVersion(unittest.TestCase):
         self.assertEqual(checked.returncode, 0, checked.stderr)
 
     def test_every_readme_which_names_the_package_is_written(self) -> None:
-        """A readme the script does not write is one which names the release before the one being made."""
+        """A readme the script does not write is one which names the release before the one being made.
+
+        What is asked of a readme is that it names the package and a version of it, because that is what a reader who
+        is deciding what to install copies. The readme at the root of the repository names the two packages and no
+        version of either, so it cannot go stale and nothing is asked of it.
+        """
         written = {relative for relative, _, _ in SET_VERSION.VERSIONS}
 
         for readme in sorted(REPOSITORY.rglob("*.md")):
             relative = readme.relative_to(REPOSITORY).as_posix()
-            if any(part in relative for part in (".git/", "/bin/", "/obj/")):
+            if any(part in relative for part in (".git/", "/bin/", "/obj/", ".spike/")):
                 continue
 
             text = readme.read_text(encoding="utf-8")
-            if "com.gatongone.singleton" in text:
+            if "com.gatongone.singleton" in text and SET_VERSION.VERSION.search(text):
                 self.assertIn(relative, written, f"{relative} names the package, and no pattern writes its version")
+
+    def test_the_version_of_the_package_of_godot_is_written(self) -> None:
+        """The one file both of the projects of Godot read their version out of is written as well."""
+        written = self.run_script("1.2.3")
+        self.assertEqual(written.returncode, 0, written.stderr)
+
+        self.assertEqual(set(self.versions("Godot/Directory.Build.props")), {"1.2.3"},
+                         "the version of the package of Godot was not written")
 
 
 if __name__ == "__main__":

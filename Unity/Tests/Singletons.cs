@@ -24,6 +24,7 @@ namespace Singleton.Tests
             typeof(CountedSingleton),
             typeof(PlainMonoBehaviourSingleton),
             typeof(PlainScriptableObjectSingleton),
+            typeof(ReusableMonoBehaviourSingleton),
             typeof(KeptMonoBehaviourSingleton),
             typeof(HiddenMonoBehaviourSingleton),
             typeof(AwakeMonoBehaviourSingleton),

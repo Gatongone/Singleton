@@ -1,14 +1,16 @@
-# IDE configs
+# What is written beside the two packages rather than being a part of either: the state of an editor, the output of a
+# build, and the scratch the two were worked out in. None of it is published, and none of it is read by anything.
+
+# The state of an editor or of an IDE, which is whoever is reading the tree rather than the tree.
 .idea
 .vs
+# What Godot imports: a cache of a project, written beside it rather than being a part of it.
+.godot/
 
-# Build results
+# What a build writes.
 [Dd]ebug
 [Rr]elease
 [Rr]eleases
 [Bb]in
 [Oo]bj
 [Ll]og
-
-# Python
-__pycache__/

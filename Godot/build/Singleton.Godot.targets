@@ -1,0 +1,30 @@
+<Project>
+
+  <!--
+    What a project which asked for this package is given after it was built.
+
+    The half of a singleton which Godot makes is not known before the type is compiled, so it is woven in afterwards.
+    What Godot does not know about is the entry which makes the engine send the notification at all: the generator of
+    the engine decides which overridable methods a script class answers for from the files it is handed, and a method
+    which is added to the assembly afterwards is one it never saw. The weaver writes that entry as well, which is why
+    it has to run on the built assembly rather than be a part of the compilation.
+  -->
+
+  <PropertyGroup>
+    <SingletonGodotWeaver>$(MSBuildThisFileDirectory)..\tools\net8.0\Singleton.Weaver.dll</SingletonGodotWeaver>
+  </PropertyGroup>
+
+  <Target Name="SingletonGodotWeave"
+          AfterTargets="Build"
+          Condition="'$(SingletonGodotDisable)' != 'true' And '$(DesignTimeBuild)' != 'true' And Exists('$(TargetPath)')">
+
+    <Error Condition="!Exists('$(SingletonGodotWeaver)')"
+           Text="The Singleton weaver is not where the package puts it ('$(SingletonGodotWeaver)'), so the singletons of this project cannot be woven." />
+
+    <!-- A status which is not zero stops the build with what went wrong printed. A singleton which is not woven is one
+         whose nodes never reach the field, which reads as a singleton that is made twice rather than as a build which
+         failed, so this is not something to carry on past. -->
+    <Exec Command="dotnet &quot;$(SingletonGodotWeaver)&quot; &quot;$(TargetPath)&quot;" />
+  </Target>
+
+</Project>

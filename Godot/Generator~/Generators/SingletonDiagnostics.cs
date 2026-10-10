@@ -8,7 +8,11 @@ namespace Singleton.Generator
     /// <remarks>
     /// Everything here is an error rather than a warning, because each of them is a case of a singleton which would be
     /// answered with something other than what was asked for: a half which was not generated at all, an instance which
-    /// is made in another way than the attribute says, or an asset which is not there.
+    /// is made in another way than the attribute says, or an asset which is not there.<para/>
+    /// The identifiers are the ones the package of Unity uses for the same reasons, so that a reader who knows one of
+    /// the packages reads the other. Two of them are missing rather than renumbered, because neither is about anything
+    /// a Godot project has: <c>SING0010</c> is a package of assets which is not referenced, and <c>SING0012</c> is the
+    /// attribute which hides the object of a <c>MonoBehaviour</c>, which Godot has no flags of that kind for.
     /// </remarks>
     internal static class SingletonDiagnostics
     {
@@ -68,65 +72,56 @@ namespace Singleton.Generator
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>An asset type was asked for by a type which Unity keeps no asset of.</summary>
+        /// <summary>An asset type was asked for by a type which Godot keeps no asset of.</summary>
         public static readonly DiagnosticDescriptor AssetTypeUnsupportedType = new(
             "SING0007",
-            "An asset type applies to a MonoBehaviour or a ScriptableObject",
-            "'{0}' asks for '{1}' and is neither a MonoBehaviour nor a ScriptableObject, so there is no asset to load",
+            "An asset type applies to a Node or a Resource",
+            "'{0}' asks for '{1}' and is neither a Node nor a Resource, so there is no asset to load",
             CATEGORY,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>No asset of the type was found under a <c>Resources</c> folder.</summary>
+        /// <summary>No scene or resource of the type was found in the project.</summary>
         public static readonly DiagnosticDescriptor ResourceAssetNotFound = new(
             "SING0008",
             "A Resources singleton must have an asset to load",
-            "No {1} under a 'Resources' folder in '{2}' holds '{0}', so the path to load it by is not known",
+            "No {1} in '{2}' names the script of '{0}', so the path to load it by is not known",
             CATEGORY,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>An Addressables singleton was given no address.</summary>
-        public static readonly DiagnosticDescriptor AddressablePathRequired = new(
+        /// <summary>An asset type was asked for by a type which is not a file of the project.</summary>
+        public static readonly DiagnosticDescriptor AssetPathRequired = new(
             "SING0009",
-            "An Addressables singleton must be given its address",
-            "'{0}' asks for 'AssetType.Addressable' without an address, and an address is not read off a project",
+            "A singleton loaded from an asset must be given its path",
+            "'{0}' asks for '{1}' without a path, and the script which declares it is not a file of the project, so no path could be read for it",
             CATEGORY,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>The compilation does not see a type which the generated code would name.</summary>
-        public static readonly DiagnosticDescriptor AddressablesNotReferenced = new(
-            "SING0010",
-            "An Addressables singleton needs the Addressables package",
-            "'{0}' asks for 'AssetType.Addressable' and the compilation does not refer to '{1}', which the generated code names",
-            CATEGORY,
-            DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
-
-        /// <summary><c>PersistentAttribute</c> was put on something which has no object to keep.</summary>
-        public static readonly DiagnosticDescriptor PersistentRequiresMonoBehaviour = new(
+        /// <summary><c>PersistentAttribute</c> was put on something which is not in a scene tree.</summary>
+        public static readonly DiagnosticDescriptor PersistentRequiresNode = new(
             "SING0011",
-            "Persistent applies to a MonoBehaviour",
-            "'{0}' asks to be kept across scene loads and is not a MonoBehaviour, so there is nothing to keep",
+            "Persistent applies to a Node",
+            "'{0}' asks to be kept across a change of scene and is not a Node, so there is no node to keep",
             CATEGORY,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary><c>InvisibleAttribute</c> was put on something which has no object to hide.</summary>
-        public static readonly DiagnosticDescriptor InvisibleRequiresMonoBehaviour = new(
-            "SING0012",
-            "Invisible applies to a MonoBehaviour",
-            "'{0}' asks to be hidden and is not a MonoBehaviour, so there is nothing to hide",
-            CATEGORY,
-            DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
-
-        /// <summary>The Unity project which holds the compiling scripts could not be found.</summary>
-        public static readonly DiagnosticDescriptor UnityProjectNotFound = new(
+        /// <summary>The Godot project which holds the compiling scripts could not be found.</summary>
+        public static readonly DiagnosticDescriptor GodotProjectNotFound = new(
             "SING0013",
-            "The Unity project must be found to read a Resources path",
-            "'{0}' asks for a 'Resources' singleton and names no path, and the Unity project which holds the scripts being compiled could not be found, so the path could not be read off it",
+            "The Godot project must be found to read an asset path",
+            "'{0}' asks for a singleton loaded from an asset and names no path, and the Godot project which holds the scripts being compiled could not be found, so the path could not be read off it",
+            CATEGORY,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        /// <summary><c>ReusableAttribute</c> was put on something which is not in a scene tree.</summary>
+        public static readonly DiagnosticDescriptor ReusableRequiresNode = new(
+            "SING0014",
+            "Reusable applies to a Node",
+            "'{0}' asks to be reused and is not a Node, so there is no node of a scene tree for a search to answer with",
             CATEGORY,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);

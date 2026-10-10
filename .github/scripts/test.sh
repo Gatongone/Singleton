@@ -31,7 +31,7 @@ set -euo pipefail
 # The question is whether the generator has changed since the commit which is recorded, rather than whether that commit
 # is the head: the copy is committed after the sources it was built from, so the record names the parent of the commit
 # which carries it, and it is what came after the record which says the binary is old.
-built=$(grep -aoE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{40}' Plugins/Singleton.Generator.dll | head -1 | cut -d+ -f2 || true)
+built=$(grep -aoE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{40}' Unity/Plugins/Singleton.Generator.dll | head -1 | cut -d+ -f2 || true)
 if [ -z "$built" ]; then
   echo "the plugin of Unity records no commit, so whether it is the generator of these sources cannot be read."
   exit 1
@@ -50,16 +50,16 @@ if ! git merge-base --is-ancestor "$built" HEAD; then
   exit 1
 fi
 
-if ! git diff --quiet "$built" HEAD -- 'Generator~'; then
-  echo "the plugin of Unity was built at $built, and Generator~ has changed since:"
-  git --no-pager diff --stat "$built" HEAD -- 'Generator~'
+if ! git diff --quiet "$built" HEAD -- 'Unity/Generator~'; then
+  echo "the plugin of Unity was built at $built, and Unity/Generator~ has changed since:"
+  git --no-pager diff --stat "$built" HEAD -- 'Unity/Generator~'
   exit 1
 fi
 
 # The generator, which is a project beside the package rather than a part of it. Its folder is named with a `~` because
 # Unity compiles nothing under such a folder, so this is the one run of the generator which an editor does not make:
 # what an editor compiles is the plugin, and a plugin is a binary which no compiler reads again.
-dotnet build 'Generator~/Singleton.Generator.sln' -c Release
+dotnet build 'Unity/Generator~/Singleton.Generator.sln' -c Release
 
 # The script which writes the version of a release into the files which name one, over a copy of those files. It is
 # tested here as well as before a release runs it: a placeholder which stopped matching the file it was written for is a

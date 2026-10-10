@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    The version of the package of Godot, in one place.
+
+    A release writes the version of the tag into every file which carries one, and the Godot package carries one in two:
+    the project which is packed, and the project of the suite, which names the package it is held to. Written twice they
+    can be written apart, and a suite which installs a version of the package other than the one being released is a
+    suite which passes for something nobody will be given.
+
+    The projects beside this one - the generator and the weaver - read it as well and do nothing with it: what they are
+    is a compiler extension and a program, and neither is published on its own.
+  -->
+
+  <PropertyGroup>
+    <Version>0.0.2</Version>
+  </PropertyGroup>
+
+</Project>

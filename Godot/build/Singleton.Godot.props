@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    What a project which asked for this package is given before it is built.
+
+    The runtime is handed over as source rather than as an assembly. A Godot project is built against the Godot it is
+    running, and an assembly of the runtime would be one built against whichever Godot this package happened to be
+    packed with: a reference to a GodotSharp of another version is one the project would have to be given, and being
+    given it is how a project ends up running an engine and an assembly which do not belong to each other. Compiled
+    here, the runtime is written against the engine the project is actually using.
+
+    The generator is an assembly, because a compiler loads a generator rather than compiling one.
+  -->
+
+  <ItemGroup Condition="'$(SingletonGodotDisable)' != 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)..\src\Singleton.Runtime\*.cs">
+      <Link>Singleton\Runtime\%(Filename)%(Extension)</Link>
+    </Compile>
+
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Singleton.Generator.dll" />
+  </ItemGroup>
+
+</Project>

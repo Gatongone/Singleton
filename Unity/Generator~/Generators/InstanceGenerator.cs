@@ -129,6 +129,16 @@ namespace Singleton.Generator
             var isMonoBehaviour = markers.IsMonoBehaviour(type);
             var isScriptableObject = markers.IsScriptableObject(type);
 
+            // A reusable singleton is given a search for the instance which is already there, and that search is one of
+            // the searches which answer with the objects of a scene: it answers with no asset of the project at all.
+            // A ScriptableObject is an asset, so the search would never answer with one, and a type which is neither is
+            // one the search is not written for either.
+            if (markers.Has(type, markers.Reusable) && !isMonoBehaviour)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(SingletonDiagnostics.ReusableRequiresMonoBehaviour, where, type.Name));
+                return null;
+            }
+
             var read = attribute.ConstructorArguments.Length == 0
                 ? Default(type, isMonoBehaviour, isScriptableObject, context, where)
                 : FromArguments(context, type, attribute, markers, arguments, locator, isMonoBehaviour, isScriptableObject, where);
@@ -137,6 +147,7 @@ namespace Singleton.Generator
 
             read.Persistent = markers.Has(type, markers.Persistent);
             read.Invisible = markers.Has(type, markers.Invisible);
+            read.Reusable = markers.Has(type, markers.Reusable);
             return read;
         }
 
@@ -626,6 +637,7 @@ namespace Singleton.Generator
             ICreator = compilation.GetTypeByMetadataName(TypeNames.CREATOR);
             Persistent = compilation.GetTypeByMetadataName(TypeNames.PERSISTENT_ATTRIBUTE);
             Invisible = compilation.GetTypeByMetadataName(TypeNames.INVISIBLE_ATTRIBUTE);
+            Reusable = compilation.GetTypeByMetadataName(TypeNames.REUSABLE_ATTRIBUTE);
             Addressables = compilation.GetTypeByMetadataName(TypeNames.ADDRESSABLES);
             AsyncOperationStatus = compilation.GetTypeByMetadataName(TypeNames.ASYNC_OPERATION_STATUS);
         }
@@ -650,6 +662,9 @@ namespace Singleton.Generator
 
         /// <summary>Whether the object is hidden.</summary>
         public INamedTypeSymbol? Invisible { get; }
+
+        /// <summary>Whether the instance may be one the engine already made.</summary>
+        public INamedTypeSymbol? Reusable { get; }
 
         /// <summary>What an Addressables asset is loaded with.</summary>
         public INamedTypeSymbol? Addressables { get; }

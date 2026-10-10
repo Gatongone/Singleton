@@ -1,0 +1,17 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    The suite is held to the package rather than to the sources beside it, because what a reader installs is the package
+    and not the tree: a runtime which is missing from what is packed, a generator which is packed where a compiler does
+    not look for one, and a target which does not run are all faults of the package alone, and a suite which built the
+    sources directly would pass with every one of them.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Singleton.Godot" Version="$(Version)" />
+  </ItemGroup>
+</Project>

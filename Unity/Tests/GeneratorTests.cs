@@ -136,6 +136,59 @@ namespace Singleton.Tests
             Assert.That(found, Has.Length.EqualTo(1), "a second object was not made");
         }
 
+        [UnityTest]
+        public IEnumerator A_reusable_MonoBehaviour_is_the_object_which_is_already_in_the_scene()
+        {
+            var placed = new GameObject(nameof(ReusableMonoBehaviourSingleton));
+            var component = placed.AddComponent<ReusableMonoBehaviourSingleton>();
+            yield return null;
+
+            // What the woven Awake did is undone, which leaves the object Unity made in the scene with nothing holding
+            // it. That is the state the search is written for, and the only one in which the search is what answers:
+            // with the field already holding the object there is nothing left for a search to do.
+            Singletons.Clear();
+
+            Assert.That(ReusableMonoBehaviourSingleton.Instance, Is.SameAs(component),
+                        "the object which was already in the scene was not searched for");
+        }
+
+        [UnityTest]
+        public IEnumerator A_MonoBehaviour_which_did_not_ask_to_be_reusable_makes_one_of_its_own()
+        {
+            var placed = new GameObject(nameof(PlainMonoBehaviourSingleton));
+            placed.AddComponent<PlainMonoBehaviourSingleton>();
+            yield return null;
+
+            Singletons.Clear();
+            var made = PlainMonoBehaviourSingleton.Instance;
+
+            Assert.That(made, Is.Not.Null);
+            Assert.That(made.gameObject, Is.Not.SameAs(placed),
+                        "a type which asked for no search was answered with the object which was there");
+
+            // What was placed is destroyed here rather than left to the teardown, which destroys the object the field
+            // holds: a second object of the type left behind is one the test after this one would find.
+            Object.DestroyImmediate(placed);
+        }
+
+        [Test]
+        public void A_ScriptableObject_is_not_answered_with_one_which_is_already_loaded()
+        {
+            var loaded = ScriptableObject.CreateInstance<PlainScriptableObjectSingleton>();
+
+            try
+            {
+                Singletons.Clear();
+
+                Assert.That(PlainScriptableObjectSingleton.Instance, Is.Not.SameAs(loaded),
+                            "a ScriptableObject was answered with an object which was already there, and the search a reusable singleton is given answers with no asset");
+            }
+            finally
+            {
+                Object.DestroyImmediate(loaded);
+            }
+        }
+
         [Test]
         public void A_ScriptableObject_is_made_with_CreateInstance()
         {
