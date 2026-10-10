@@ -17,12 +17,14 @@ on:
 # The commit which carries the version is pushed to the branch and the tag of the release is moved to it, and the last
 # step writes the notes of the release: the two of them are writes to the repository which the release belongs to.
 #
-# No token is kept for the registry. The package is published to through a trusted publisher, which is the identity this
-# run is given by GitHub for the step to present to npm: `id-token: write` is what it is given, and what it is answered
-# with is npm's own identity, which its step stages a version with.
+# No token is kept for either registry. Each is published to through a trusted publisher, which is the identity this run
+# is given by GitHub for the step to present: `id-token: write` is what it is given, and what it is answered with is the
+# registry's own short-lived credential - npm stages a version with the one it is handed, and nuget.org hands back a key
+# which lives for an hour, which is why the push of that one is next to the end of the run rather than beside the build.
 #
-# What has to be done before npm answers is configured per package, and the settings of a package are reached through
-# the package, so the first version of it is published by hand, once, from a terminal which is signed in.
+# What has to be done before either answers is configured per package, and the settings of a package are reached through
+# the package, so the first version of one is published by hand, once, from a terminal which is signed in - and a trusted
+# publishing policy is added by hand on nuget.org, which names the repository and this file.
 permissions:
   contents: write
   id-token: write
@@ -206,6 +208,30 @@ jobs:
             sleep 5
           done
           exit 1
+
+      - name: Ask nuget.org for a key to publish with
+        # The identity this run is given by GitHub is presented to nuget.org, which checks it against the trusted
+        # publishing policy of the package and answers with a key. The key lives for an hour and is asked for here
+        # rather than beside the build for that reason: one which was asked for at the beginning of a run would be one
+        # which expired before the push.
+        id: nuget
+        uses: NuGet/login@v1
+        with:
+          # The profile name on nuget.org, which is not the address of the account.
+          user: Gatongone
+
+      - name: Publish the package of Godot
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # A version the registry holds already is left where it stands rather than refused, which is what a release
+          # which is published twice asks for: `--skip-duplicate` answers the registry's refusal as a warning rather
+          # than as a failure of the run.
+          dotnet nuget push "$RUNNER_TEMP/assets/Singleton.Godot.$VERSION.nupkg" \
+            --api-key "${{ steps.nuget.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
 
       - name: Attach the archives to the release
         # The tag was moved onto the commit which carries the version, so what is attached is the two files built from
